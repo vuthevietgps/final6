@@ -18,6 +18,7 @@ import { Model } from 'mongoose';
 import { User, UserDocument } from './user.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UserRole } from './user.enum';
 
 @Injectable()
 export class UserService {
@@ -93,5 +94,20 @@ export class UserService {
    */
   async findActiveUsers(): Promise<User[]> {
     return this.userModel.find({ isActive: true }).exec();
+  }
+
+  /**
+   * Lấy danh sách đại lý đang hoạt động với trường tối giản cho dropdown
+   * @param roles - Danh sách vai trò cần lọc (mặc định là nội bộ + ngoài)
+   */
+  async findActiveAgentsMinimal(
+    roles: UserRole[] = [UserRole.INTERNAL_AGENT, UserRole.EXTERNAL_AGENT],
+  ): Promise<Array<{ _id: string; fullName: string; email: string; role: UserRole }>> {
+    const users = await this.userModel
+      .find({ role: { $in: roles }, isActive: true })
+      .select('_id fullName email role')
+      .sort({ fullName: 1 })
+      .lean();
+    return users.map((u: any) => ({ _id: String(u._id), fullName: u.fullName, email: u.email, role: u.role }));
   }
 }

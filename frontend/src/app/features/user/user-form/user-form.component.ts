@@ -48,7 +48,9 @@ export class UserFormComponent implements OnInit {
       departmentId: [''],
       managerId: [''],
   notes: [''],
-  googleDriveLink: ['', [Validators.pattern(this.googleSheetRegex)]]
+  googleDriveLink: ['', [Validators.pattern(this.googleSheetRegex)]],
+      // allowedLoginIps nhập theo dạng một IP mỗi dòng
+      allowedLoginIps: ['']
     });
   }
 
@@ -92,7 +94,8 @@ export class UserFormComponent implements OnInit {
           departmentId: user.departmentId,
           managerId: user.managerId,
           notes: user.notes,
-          googleDriveLink: user.googleDriveLink
+          googleDriveLink: user.googleDriveLink,
+          allowedLoginIps: (user.allowedLoginIps || []).join('\n')
         });
         this.cdr.detectChanges();
       },
@@ -110,10 +113,24 @@ export class UserFormComponent implements OnInit {
       this.error = null;
 
       const formValue = this.userForm.value;
+      // Chuyển đổi allowedLoginIps từ textarea (string) -> string[]
+      const allowedLoginIps = (formValue.allowedLoginIps || '')
+        .split(/\r?\n/)
+        .map((s: string) => s.trim())
+        .filter((s: string) => !!s);
+
+      // Yêu cầu allowedLoginIps khi role là manager/employee
+      const role = formValue.role as UserRole;
+      if ((role === UserRole.MANAGER || role === UserRole.EMPLOYEE) && allowedLoginIps.length === 0) {
+        this.loading = false;
+        this.error = 'Với vai trò Quản Lý hoặc Nhân Viên, cần cấu hình ít nhất 1 IP được phép đăng nhập';
+        this.cdr.detectChanges();
+        return;
+      }
       
       if (this.isEditMode) {
         // Remove password if empty in edit mode
-        const updateData: UpdateUserDto = { ...formValue };
+  const updateData: UpdateUserDto = { ...formValue, allowedLoginIps };
         if (!updateData.password) {
           delete updateData.password;
         }
@@ -129,7 +146,7 @@ export class UserFormComponent implements OnInit {
           }
         });
       } else {
-        const createData: CreateUserDto = formValue;
+  const createData: CreateUserDto = { ...formValue, allowedLoginIps };
         this.userService.createUser(createData).subscribe({
           next: () => {
             this.router.navigate(['/users']);

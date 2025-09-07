@@ -20,4 +20,5 @@ import { CreateUserDto } from './create-user.dto';
  * Điều này cho phép client gửi chỉ những fields cần update
  * PartialType tự động làm tất cả properties thành optional
  */
+// Bao gồm cả allowedLoginIps như optional
 export class UpdateUserDto extends PartialType(CreateUserDto) {}

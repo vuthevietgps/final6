@@ -5,6 +5,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { AuthService } from '../../core/services/auth.service';
 
 interface MenuItem {
   icon: string;
@@ -21,6 +22,8 @@ interface MenuItem {
   styleUrls: ['./sidebar.component.css']
 })
 export class SidebarComponent {
+  constructor(public authService: AuthService) {}
+
   menuItems: MenuItem[] = [
     {
       icon: '👥',
@@ -66,7 +69,7 @@ export class SidebarComponent {
       label: 'Chi Phí',
       route: '/costs',
       children: [
-        { icon: '🧑‍🏭', label: 'Chi Phí Nhân Công 1', route: '/costs/labor1' },
+        { icon: '🧑‍🏭', label: 'Chi Phí Nhân Công 1', route: '/labor1' },
         { icon: '🛒', label: 'Chi Phí Nhập Hàng', route: '/costs/purchase' },
         { icon: '💸', label: 'Chi Phí Khác', route: '/costs/other' }
       ]
@@ -126,5 +129,54 @@ export class SidebarComponent {
 
   isExpanded(route: string): boolean {
     return this.expandedItems.has(route);
+  }
+
+  // Kiểm tra quyền hiển thị một menu item (cha hoặc con)
+  canShow(item: MenuItem): boolean {
+    // Nếu chưa đăng nhập: chỉ cho phép menu Login
+    if (!this.authService.isAuthenticated()) {
+      return item.route === '/login';
+    }
+
+    const routePermMap: Record<string, string> = {
+      '/users': 'users',
+      '/orders': 'orders',
+      '/orders/test': 'orders',
+      '/orders/test2': 'orders',
+      '/products': 'products',
+      '/product-category': 'product-categories',
+      '/product': 'products',
+  '/customers': 'customers',
+      '/ad-accounts': 'ad-accounts',
+      '/costs/advertising2': 'advertising-costs',
+      '/ad-groups': 'ad-groups',
+      '/ad-group-counts': 'ad-groups',
+      '/labor1': 'labor-costs',
+  '/costs/purchase': 'purchase-costs',
+      '/costs/other': 'other-costs',
+  '/costs/salary': 'salary-config',
+      '/production-status': 'production-status',
+      '/delivery-status': 'delivery-status',
+      '/quotes': 'quotes',
+      '/reports/ad-group-profit': 'reports',
+      '/reports/ad-group-profit-report': 'reports',
+      '/reports/summary1': 'reports',
+      '/reports/summary2': 'reports',
+      '/reports/product-profit': 'reports',
+  '/profit': 'reports',
+      '/settings': 'settings'
+    };
+
+    const permission = routePermMap[item.route];
+    if (!permission && !item.children?.length) {
+      return true; // không yêu cầu quyền cụ thể
+    }
+
+    if (item.children?.length) {
+      // Hiển thị item cha nếu có ít nhất một child có quyền
+      return item.children.some(child => this.canShow(child));
+    }
+
+    return this.authService.hasPermission(permission);
   }
 }

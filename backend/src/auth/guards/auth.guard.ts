@@ -34,21 +34,31 @@ export class RolesGuard implements CanActivate {
     }
 
     // Permission mappings
+    // Policy:
+    // - director: thấy tất cả menu và thao tác tất cả
+    // - manager: chỉ Đơn hàng + Quảng cáo (và các menu con liên quan)
+    // - employee: chỉ Đơn hàng
     const rolePermissions: Record<string, string[]> = {
       'director': [
-        'users', 'products', 'orders', 'delivery-status', 'production-status',
-        'ad-accounts', 'ad-groups', 'advertising-costs', 'quotes',
-        'product-categories', 'order-status', 'labor-costs', 'other-costs',
-        'salary-config', 'reports', 'export', 'import'
+  'users', 'orders', 'products', 'product-categories',
+        'delivery-status', 'production-status', 'order-status',
+  'ad-accounts', 'ad-groups', 'advertising-costs',
+  'labor-costs', 'other-costs', 'salary-config',
+  // Newly explicit permissions
+  'customers', 'purchase-costs',
+  'quotes', 'reports', 'export', 'import', 'settings'
       ],
       'manager': [
-        'ad-accounts', 'ad-groups', 'advertising-costs', 'quotes',
-        'reports', 'export', 'products', 'product-categories'
+        // Orders
+        'orders',
+        // Advertising
+        'ad-accounts', 'ad-groups', 'advertising-costs'
       ],
       'employee': [
-        'orders', 'delivery-status', 'production-status', 'order-status',
-        'products', 'product-categories'
+        // Orders only
+        'orders'
       ],
+      // Các vai trò khác giữ nguyên như cũ (có thể tinh chỉnh sau)
       'internal_agent': ['orders', 'delivery-status', 'products'],
       'external_agent': ['orders', 'delivery-status'],
       'internal_supplier': ['products', 'quotes'],

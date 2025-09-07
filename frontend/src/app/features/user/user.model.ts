@@ -43,6 +43,7 @@ export interface User {
   managerId?: string;    // ID manager (optional)
   notes?: string;        // Ghi chú (optional)
   googleDriveLink?: string; // Link Google Drive của user
+  allowedLoginIps?: string[]; // Danh sách IP cho phép đăng nhập (áp dụng Manager/Employee)
   createdAt?: Date;      // Ngày tạo (auto-generated)
   updatedAt?: Date;      // Ngày cập nhật (auto-generated)
 }
@@ -63,6 +64,7 @@ export interface CreateUserDto {
   managerId?: string;    // Optional
   notes?: string;        // Optional
   googleDriveLink?: string; // Optional
+  allowedLoginIps?: string[]; // Optional (bắt buộc bởi logic khi role là manager/employee)
 }
 
 /**
@@ -81,4 +83,5 @@ export interface UpdateUserDto {
   managerId?: string;    // Optional - manager mới
   notes?: string;        // Optional - ghi chú mới
   googleDriveLink?: string; // Optional - link drive mới
+  allowedLoginIps?: string[]; // Optional - danh sách IP cho phép đăng nhập
 }

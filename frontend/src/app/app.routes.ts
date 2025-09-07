@@ -61,35 +61,54 @@ export const routes: Routes = [
   },
   {
     path: 'product-category',
-    loadComponent: () => import('./features/product-category/product-category.component').then(m => m.ProductCategoryComponent)
+    loadComponent: () => import('./features/product-category/product-category.component').then(m => m.ProductCategoryComponent),
+    canActivate: [AuthGuard],
+    data: { permissions: ['product-categories'] }
   },
   {
     path: 'product',
-    loadComponent: () => import('./features/product/product.component').then(m => m.ProductComponent)
+    loadComponent: () => import('./features/product/product.component').then(m => m.ProductComponent),
+    canActivate: [AuthGuard],
+    data: { permissions: ['products'] }
   },
   {
     path: 'quotes',
-    loadComponent: () => import('./features/quote/quote.component').then(m => m.QuoteComponent)
+    loadComponent: () => import('./features/quote/quote.component').then(m => m.QuoteComponent),
+    canActivate: [AuthGuard],
+    data: { permissions: ['quotes'] }
+  },
+  {
+    path: 'customers',
+    loadComponent: () => import('./core/components/coming-soon.component').then(m => m.ComingSoonComponent),
+    canActivate: [AuthGuard],
+    data: { permissions: ['customers'] }
   },
   {
     path: 'ad-groups',
-    loadComponent: () => import('./features/ad-group/ad-group.component').then(m => m.AdGroupComponent)
+    loadComponent: () => import('./features/ad-group/ad-group.component').then(m => m.AdGroupComponent),
+    canActivate: [AuthGuard],
+    data: { permissions: ['ad-groups'] }
   },
   {
     path: 'ad-accounts',
-    loadComponent: () => import('./features/ad-account/ad-account.component').then(m => m.AdAccountComponent)
+    loadComponent: () => import('./features/ad-account/ad-account.component').then(m => m.AdAccountComponent),
+    canActivate: [AuthGuard],
+    data: { permissions: ['ad-accounts'] }
   },
   {
     path: 'ad-group-counts',
-    loadComponent: () => import('./features/ad-group-counts/ad-group-counts.component').then(m => m.AdGroupCountsComponent)
+    loadComponent: () => import('./features/ad-group-counts/ad-group-counts.component').then(m => m.AdGroupCountsComponent),
+    canActivate: [AuthGuard],
+    data: { permissions: ['ad-groups'] }
   },
   {
     path: 'costs',
     children: [
-  { path: 'advertising2', loadComponent: () => import('./features/advertising-cost2/advertising-cost2.component').then(m => m.AdvertisingCost2Component) },
-  { path: 'labor1', loadComponent: () => import('./features/labor-cost1/labor-cost1.component').then(m => m.LaborCost1Component) },
-      { path: 'other', loadComponent: () => import('./features/other-cost/other-cost.component').then(m => m.OtherCostComponent) },
-  { path: 'salary', loadComponent: () => import('./features/salary-config/salary-config.component').then(m => m.SalaryConfigComponent) },
+      { path: 'advertising2', loadComponent: () => import('./features/advertising-cost2/advertising-cost2.component').then(m => m.AdvertisingCost2Component), canActivate: [AuthGuard], data: { permissions: ['advertising-costs'] } },
+      { path: 'labor1', loadComponent: () => import('./features/labor-cost1/labor-cost1.component').then(m => m.LaborCost1Component), canActivate: [AuthGuard], data: { permissions: ['labor-costs'] } },
+  { path: 'purchase', loadComponent: () => import('./core/components/coming-soon.component').then(m => m.ComingSoonComponent), canActivate: [AuthGuard], data: { permissions: ['purchase-costs'] } },
+      { path: 'other', loadComponent: () => import('./features/other-cost/other-cost.component').then(m => m.OtherCostComponent), canActivate: [AuthGuard], data: { permissions: ['other-costs'] } },
+      { path: 'salary', loadComponent: () => import('./features/salary-config/salary-config.component').then(m => m.SalaryConfigComponent), canActivate: [AuthGuard], data: { permissions: ['salary-config'] } },
       {
         path: ':type',
         loadComponent: () => import('./core/components/coming-soon.component').then(m => m.ComingSoonComponent),
@@ -104,12 +123,16 @@ export const routes: Routes = [
   },
   {
     path: 'profit',
-    loadComponent: () => import('./core/components/coming-soon.component').then(m => m.ComingSoonComponent)
+    loadComponent: () => import('./core/components/coming-soon.component').then(m => m.ComingSoonComponent),
+    canActivate: [AuthGuard],
+    data: { permissions: ['reports'] }
   },
   {
     path: 'reports',
+    canActivate: [AuthGuard],
+    data: { permissions: ['reports'] },
     children: [
-  { path: 'ad-group-profit', loadComponent: () => import('./features/ad-group-profit/ad-group-profit.component').then(m => m.AdGroupProfitComponent) },
+      { path: 'ad-group-profit', loadComponent: () => import('./features/ad-group-profit/ad-group-profit.component').then(m => m.AdGroupProfitComponent) },
       { path: 'ad-group-profit-report', loadComponent: () => import('./features/ad-group-profit-report/ad-group-profit-report.component').then(m => m.AdGroupProfitReportComponent) },
       { path: 'summary1', loadComponent: () => import('./features/summary1/summary1.component').then(m => m.Summary1Component) },
       { path: 'summary2', loadComponent: () => import('./features/summary2/summary2.component').then(m => m.Summary2Component) },
@@ -119,7 +142,9 @@ export const routes: Routes = [
   },
   {
     path: 'settings',
-    loadComponent: () => import('./core/components/coming-soon.component').then(m => m.ComingSoonComponent)
+    loadComponent: () => import('./core/components/coming-soon.component').then(m => m.ComingSoonComponent),
+    canActivate: [AuthGuard],
+    data: { permissions: ['settings'] }
   },
   {
     path: '**',

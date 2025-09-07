@@ -1,10 +1,17 @@
 <nav class="sidebar">
   <div class="sidebar-header">
     <h3>Hệ Thống Quản Lý</h3>
+    <div class="auth-actions">
+      <button *ngIf="authService.isAuthenticated(); else loginBtn" (click)="authService.logout()" class="btn btn-sm">Đăng xuất</button>
+      <ng-template #loginBtn>
+        <a routerLink="/login" class="btn btn-sm">Đăng nhập</a>
+      </ng-template>
+    </div>
   </div>
   
   <ul class="menu-list">
-    <li *ngFor="let item of menuItems" class="menu-item">
+    <ng-container *ngFor="let item of menuItems">
+    <li class="menu-item" *ngIf="canShow(item)">
       <!-- Mục không có submenu: cả dòng là link điều hướng -->
       <a *ngIf="!item.children?.length"
          class="menu-link link-content"
@@ -28,7 +35,8 @@
       </div>
 
       <ul *ngIf="item.children?.length && isExpanded(item.route)" class="submenu">
-        <li *ngFor="let child of item.children" class="submenu-item">
+        <ng-container *ngFor="let child of item.children">
+        <li class="submenu-item" *ngIf="canShow(child)">
           <a [routerLink]="child.route"
              routerLinkActive="active"
              class="submenu-link">
@@ -36,7 +44,9 @@
             <span class="label">{{ child.label }}</span>
           </a>
         </li>
+        </ng-container>
       </ul>
     </li>
+    </ng-container>
   </ul>
 </nav>

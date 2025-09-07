@@ -12,7 +12,7 @@
  * - Đảm bảo required fields được cung cấp
  */
 
-import { IsString, IsEmail, IsEnum, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsEmail, IsEnum, IsOptional, IsBoolean, IsArray, ArrayNotEmpty, ArrayUnique, IsIP } from 'class-validator';
 import { UserRole } from '../user.enum';
 
 export class CreateUserDto {
@@ -98,4 +98,14 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   googleDriveLink?: string;
+
+  /**
+   * Danh sách IP được phép đăng nhập (chỉ bắt buộc với Manager/Employee)
+   * Optional ở DTO (bắt buộc sẽ kiểm tra ở logic auth theo role)
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsIP(undefined, { each: true })
+  allowedLoginIps?: string[];
 }

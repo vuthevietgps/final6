@@ -2,11 +2,14 @@
  * File: product-profit-report/product-profit-report.controller.ts
  * Mục đích: Controller API cho báo cáo lợi nhuận sản phẩm theo ngày
  */
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ProductProfitReportService } from './product-profit-report.service';
 import { ProductProfitFilterDto } from './dto/product-profit-filter.dto';
+import { JwtAuthGuard, RolesGuard } from '../auth/guards/auth.guard';
+import { RequirePermissions } from '../auth/decorators/auth.decorator';
 
 @Controller('product-profit-report')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class ProductProfitReportController {
   constructor(private readonly productProfitReportService: ProductProfitReportService) {}
 
@@ -15,6 +18,7 @@ export class ProductProfitReportController {
    * GET /product-profit-report
    */
   @Get()
+  @RequirePermissions('reports')
   async getProductProfitReport(@Query() filterDto: ProductProfitFilterDto) {
     return this.productProfitReportService.getProductProfitReport(filterDto);
   }
@@ -24,6 +28,7 @@ export class ProductProfitReportController {
    * GET /product-profit-report/years
    */
   @Get('years')
+  @RequirePermissions('reports')
   async getAvailableYears() {
     const years = await this.productProfitReportService.getAvailableYears();
     return { years };
@@ -34,6 +39,7 @@ export class ProductProfitReportController {
    * GET /product-profit-report/summary
    */
   @Get('summary')
+  @RequirePermissions('reports')
   async getSummary(@Query() filterDto: ProductProfitFilterDto) {
     const report = await this.productProfitReportService.getProductProfitReport(filterDto);
     return {

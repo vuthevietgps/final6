@@ -46,4 +46,12 @@ export class UserService {
   getUserByEmail(email: string): Observable<User> {
     return this.http.get<User>(`${this.apiUrl}/email/${email}`);
   }
+
+  /**
+   * Lấy danh sách đại lý (tối giản) cho dropdown, không cần quyền 'users'.
+   * Backend bảo vệ bằng quyền 'orders'.
+   */
+  getAgents(): Observable<User[]> {
+    return this.http.get<User[]>(`${this.apiUrl}/agents`);
+  }
 }

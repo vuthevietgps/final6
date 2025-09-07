@@ -20,6 +20,9 @@ import { User } from '../user/user.model';
 
     <div class="toolbar">
       <button class="btn btn-primary" (click)="addNew()">+ Thêm mới</button>
+      <button class="btn btn-success" (click)="generateFromSessions()" [disabled]="generating()">
+        {{ generating() ? '🔄 Đang tạo...' : '🤖 Tạo từ Session Logs' }}
+      </button>
     </div>
 
     <div class="list" *ngIf="!loading() && !error()">
@@ -123,6 +126,7 @@ export class LaborCost1Component implements OnInit {
   users = signal<User[]>([]);
   rows = signal<LaborCost1[]>([]);
   loading = signal<boolean>(false);
+  generating = signal<boolean>(false);
   error = signal<string | null>(null);
   private saving = new Set<string>();
 
@@ -190,6 +194,32 @@ export class LaborCost1Component implements OnInit {
   remove(id: string): void {
     if (!confirm('Xóa bản ghi này?')) return;
     this.laborSvc.remove(id).subscribe({ next: _ => { this.rows.set(this.rows().filter(x => x._id !== id)); this.cdr.detectChanges(); } });
+  }
+
+  generateFromSessions(): void {
+    this.generating.set(true);
+    this.error.set(null);
+    
+    // Tạo từ session logs cho tất cả users và tất cả ngày
+    this.laborSvc.generateFromSessionLogs().subscribe({
+      next: result => {
+        this.generating.set(false);
+        console.log('Generate result:', result);
+        
+        if (result.created > 0) {
+          // Reload data to show new records
+          this.loadAll();
+          alert(`✅ Đã tạo thành công ${result.created} bản ghi chi phí nhân công từ session logs!`);
+        } else {
+          alert(`ℹ️ ${result.message}\n\nChi tiết: ${result.results?.map((r: any) => `${r.status}: ${r.reason || 'OK'}`).join('\n') || 'Không có dữ liệu'}`);
+        }
+      },
+      error: err => {
+        this.generating.set(false);
+        console.error('Generate error:', err);
+        this.error.set(`Lỗi khi tạo từ session logs: ${err.message || err}`);
+      }
+    });
   }
 
   displayUser(userId: any): string {

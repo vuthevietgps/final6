@@ -75,7 +75,17 @@ export class TestOrderComponent implements OnInit {
   save() {
     if (this.form.invalid) return;
     this.loading.set(true);
-    const payload = this.form.value as unknown as CreateTestOrder;
+    // Coerce numeric fields and sanitize payload to match DTO types
+    const raw = this.form.value as any;
+    const payload: CreateTestOrder = {
+      code: raw.code,
+      date: raw.date,
+      customerName: raw.customerName,
+      phone: raw.phone || undefined,
+      total: Number(raw.total ?? 0),
+      status: (raw.status || 'new') as any,
+      notes: raw.notes || undefined,
+    };
     const obs = this.editingId ? this.service.update(this.editingId, payload) : this.service.create(payload);
     obs.subscribe({
       next: () => { this.load(); this.showModal.set(false); },

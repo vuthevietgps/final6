@@ -26,18 +26,20 @@ export class AuthService {
   // Permission mappings
   private readonly rolePermissions: Record<UserRole, string[]> = {
     [UserRole.DIRECTOR]: [
-      'users', 'products', 'orders', 'delivery-status', 'production-status',
-      'ad-accounts', 'ad-groups', 'advertising-costs', 'quotes',
-      'product-categories', 'order-status', 'labor-costs', 'other-costs',
-      'salary-config', 'reports', 'export', 'import'
+      'users', 'orders', 'products', 'product-categories',
+      'delivery-status', 'production-status', 'order-status',
+  'ad-accounts', 'ad-groups', 'advertising-costs',
+  'labor-costs', 'other-costs', 'salary-config',
+  // Newly explicit permissions used by Sidebar
+  'customers', 'purchase-costs',
+      'quotes', 'reports', 'export', 'import', 'settings'
     ],
     [UserRole.MANAGER]: [
-      'ad-accounts', 'ad-groups', 'advertising-costs', 'quotes',
-      'reports', 'export', 'products', 'product-categories'
+      'orders', // Đơn hàng
+      'ad-accounts', 'ad-groups', 'advertising-costs' // Quảng cáo
     ],
     [UserRole.EMPLOYEE]: [
-      'orders', 'delivery-status', 'production-status', 'order-status',
-      'products', 'product-categories'
+      'orders'
     ],
     [UserRole.INTERNAL_AGENT]: ['orders', 'delivery-status', 'products'],
     [UserRole.EXTERNAL_AGENT]: ['orders', 'delivery-status'],
@@ -84,6 +86,13 @@ export class AuthService {
   }
 
   logout(): void {
+    // Gọi API để ghi nhận thời gian logout; không chặn UI nếu lỗi/401
+    try {
+      this.http.post('http://localhost:3000/session-logs/logout', {}).subscribe({
+        next: () => {},
+        error: () => {},
+      });
+    } catch {}
     this.clearAuthData();
     this.userSignal.set(null);
     this.router.navigate(['/login']);

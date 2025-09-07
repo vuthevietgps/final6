@@ -8,6 +8,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { User, UserSchema } from '../user/user.schema';
 import { JwtAuthGuard, RolesGuard } from './guards/auth.guard';
+import { SessionLogModule } from '../session-log/session-log.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { JwtAuthGuard, RolesGuard } from './guards/auth.guard';
       signOptions: { expiresIn: '24h' },
     }),
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+  SessionLogModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, LocalStrategy, JwtStrategy, JwtAuthGuard, RolesGuard],

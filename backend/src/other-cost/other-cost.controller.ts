@@ -2,13 +2,16 @@
  * File: other-cost/other-cost.controller.ts
  * Mục đích: REST API cho Chi Phí Khác (CRUD + thống kê tổng tiền).
  */
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, ValidationPipe, HttpCode, HttpStatus, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, ValidationPipe, HttpCode, HttpStatus, Res, UseGuards } from '@nestjs/common';
 import { Response } from 'express';
 import { OtherCostService } from './other-cost.service';
 import { CreateOtherCostDto } from './dto/create-other-cost.dto';
 import { UpdateOtherCostDto } from './dto/update-other-cost.dto';
+import { JwtAuthGuard, RolesGuard } from '../auth/guards/auth.guard';
+import { RequirePermissions } from '../auth/decorators/auth.decorator';
 
 @Controller('other-cost')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class OtherCostController {
   constructor(private readonly otherCostService: OtherCostService) {}
 
@@ -16,6 +19,7 @@ export class OtherCostController {
    * Tạo mới chi phí khác
    */
   @Post()
+  @RequirePermissions('other-costs')
   @HttpCode(HttpStatus.CREATED)
   create(@Body(ValidationPipe) dto: CreateOtherCostDto) {
     return this.otherCostService.create(dto);
@@ -25,6 +29,7 @@ export class OtherCostController {
    * Danh sách chi phí: hỗ trợ lọc theo khoảng ngày (from, to) dạng ISO-8601
    */
   @Get()
+  @RequirePermissions('other-costs')
   findAll(@Query('from') from?: string, @Query('to') to?: string) {
     return this.otherCostService.findAll(from, to);
   }
@@ -34,6 +39,7 @@ export class OtherCostController {
    * GET /other-cost/summary?from=...&to=...
    */
   @Get('summary')
+  @RequirePermissions('other-costs')
   getSummary(@Query('from') from?: string, @Query('to') to?: string) {
     return this.otherCostService.getSummary(from, to);
   }
@@ -43,6 +49,7 @@ export class OtherCostController {
    * GET /other-cost/export/csv?from=YYYY-MM-DD&to=YYYY-MM-DD
    */
   @Get('export/csv')
+  @RequirePermissions('other-costs')
   async exportToCSV(
     @Res() res: Response,
     @Query('from') from?: string,
@@ -87,6 +94,7 @@ export class OtherCostController {
    * Chi tiết 1 chi phí
    */
   @Get(':id')
+  @RequirePermissions('other-costs')
   findOne(@Param('id') id: string) {
     return this.otherCostService.findOne(id);
   }
@@ -95,6 +103,7 @@ export class OtherCostController {
    * Cập nhật chi phí
    */
   @Patch(':id')
+  @RequirePermissions('other-costs')
   update(@Param('id') id: string, @Body(ValidationPipe) dto: UpdateOtherCostDto) {
     return this.otherCostService.update(id, dto);
   }
@@ -103,6 +112,7 @@ export class OtherCostController {
    * Xóa chi phí
    */
   @Delete(':id')
+  @RequirePermissions('other-costs')
   @HttpCode(HttpStatus.OK)
   remove(@Param('id') id: string) {
     return this.otherCostService.remove(id);

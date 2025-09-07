@@ -39,6 +39,7 @@ import { Summary2Module } from './summary2/summary2.module';
 import { AdGroupProfitModule } from './ad-group-profit/ad-group-profit.module';
 import { ProductProfitReportModule } from './product-profit-report/product-profit-report.module';
 import { AdGroupProfitReportModule } from './ad-group-profit-report/ad-group-profit-report.module';
+import { SessionLogModule } from './session-log/session-log.module';
 
 @Module({
   imports: [
@@ -108,6 +109,7 @@ import { AdGroupProfitReportModule } from './ad-group-profit-report/ad-group-pro
   ProductProfitReportModule,
   // Module báo cáo lợi nhuận của Quảng Cáo theo ngày
   AdGroupProfitReportModule,
+  SessionLogModule,
   ],
   controllers: [], // Không có controllers ở level app, chỉ có ở modules con
   providers: [],   // Không có providers chung ở level app

@@ -29,6 +29,7 @@ import { RequirePermissions } from '../auth/decorators/auth.decorator';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UserRole } from './user.enum';
 
 @Controller('users') // Base route: /users
 @UseGuards(JwtAuthGuard, RolesGuard) // Bảo vệ tất cả routes với JWT
@@ -65,6 +66,18 @@ export class UserController {
     }
     // Không có filter, lấy tất cả users
     return this.userService.findAll();
+  }
+
+  /**
+   * GET /users/agents - Danh sách đại lý đang hoạt động (tối giản) cho dropdown
+   * - Quyền: 'orders' (để nhân viên tạo đơn có thể tra cứu đại lý)
+   * - Trả về: _id, fullName, email, role
+   */
+  @Get('agents')
+  @RequirePermissions('orders')
+  getActiveAgentsMinimal() {
+    // Chỉ lấy đại lý nội bộ/ngoài và đang hoạt động
+    return this.userService.findActiveAgentsMinimal([UserRole.INTERNAL_AGENT, UserRole.EXTERNAL_AGENT]);
   }
 
   /**

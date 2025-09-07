@@ -35,6 +35,9 @@ async function bootstrap() {
     whitelist: true,        // Chỉ cho phép properties được định nghĩa trong DTO
     forbidNonWhitelisted: true,  // Trả lỗi nếu có property không được định nghĩa
     transform: true,        // Tự động transform data type
+    transformOptions: {
+      enableImplicitConversion: true, // Cho phép chuyển đổi chuỗi số sang number/date tự động
+    },
   }));
 
   // Khởi động server trên port cấu hình (PORT env) hoặc mặc định 3000

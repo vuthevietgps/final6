@@ -16,4 +16,13 @@ export class LaborCost1Service {
   create(dto: CreateLaborCost1Dto): Observable<LaborCost1> { return this.http.post<LaborCost1>(this.apiUrl, dto); }
   update(id: string, dto: UpdateLaborCost1Dto): Observable<LaborCost1> { return this.http.patch<LaborCost1>(`${this.apiUrl}/${id}`, dto); }
   remove(id: string): Observable<void> { return this.http.delete<void>(`${this.apiUrl}/${id}`); }
+  
+  generateFromSessionLogs(userId?: string, date?: string): Observable<any> {
+    const params = new URLSearchParams();
+    if (userId) params.append('userId', userId);
+    if (date) params.append('date', date);
+    const queryString = params.toString();
+    const url = queryString ? `${this.apiUrl}/generate-from-sessions?${queryString}` : `${this.apiUrl}/generate-from-sessions`;
+    return this.http.post<any>(url, {});
+  }
 }

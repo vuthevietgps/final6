@@ -75,17 +75,18 @@ export class QuoteService {
   }
 
   getAgents(): Observable<User[]> {
-    // Use UserService to get all users and convert to quote User format
-    return this.userService.getUsers()
+    // Use lightweight agents endpoint to avoid needing 'users' permission
+    return this.userService.getAgents()
       .pipe(
         map((users: any[]) => users.map(user => ({
           _id: user._id,
           fullName: user.fullName,
           email: user.email,
           role: user.role,
-          phone: user.phone,
-          address: user.address,
-          isActive: user.isActive
+          // Optional fields may be absent in minimal payload
+          phone: user.phone || '',
+          address: user.address || '',
+          isActive: true
         }))),
         catchError(this.handleError)
       );

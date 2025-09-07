@@ -140,18 +140,18 @@ export class DashboardComponent {
     
     const rolePermissions: Record<UserRole, string[]> = {
       [UserRole.DIRECTOR]: [
-        'users', 'products', 'orders', 'delivery-status', 'production-status',
-        'ad-accounts', 'ad-groups', 'advertising-costs', 'quotes',
-        'product-categories', 'order-status', 'labor-costs', 'other-costs',
-        'salary-config', 'reports', 'export', 'import'
+        'users', 'orders', 'products', 'product-categories',
+        'delivery-status', 'production-status', 'order-status',
+        'ad-accounts', 'ad-groups', 'advertising-costs',
+        'labor-costs', 'other-costs', 'salary-config',
+        'quotes', 'reports', 'export', 'import', 'settings'
       ],
       [UserRole.MANAGER]: [
-        'ad-accounts', 'ad-groups', 'advertising-costs', 'quotes',
-        'reports', 'export', 'products', 'product-categories'
+        'orders',
+        'ad-accounts', 'ad-groups', 'advertising-costs'
       ],
       [UserRole.EMPLOYEE]: [
-        'orders', 'delivery-status', 'production-status', 'order-status',
-        'products', 'product-categories'
+        'orders'
       ],
       [UserRole.INTERNAL_AGENT]: ['orders', 'delivery-status', 'products'],
       [UserRole.EXTERNAL_AGENT]: ['orders', 'delivery-status'],

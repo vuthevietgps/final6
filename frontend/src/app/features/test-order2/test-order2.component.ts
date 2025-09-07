@@ -138,8 +138,8 @@ export class TestOrder2Component implements OnInit, AfterViewInit {
       next: (items) => this.products.set(items.map((i: any) => ({ _id: i._id, name: i.name }))),
       error: (e) => console.error(e)
     });
-    this.userService.getUsers(undefined, true).subscribe({
-      next: (items: any) => this.agents.set(items.map((u: any) => ({ _id: u._id, name: u.fullName || u.username || u.email }))),
+    this.userService.getAgents().subscribe({
+      next: (items: any) => this.agents.set(items.map((u: any) => ({ _id: u._id, name: u.fullName || u.email }))),
       error: (e: any) => console.error(e)
     });
     this.adGroupService.getAll().subscribe({
