@@ -4,12 +4,13 @@ import { Router } from '@angular/router';
 import { Observable, BehaviorSubject } from 'rxjs';
 import { map, tap, catchError } from 'rxjs/operators';
 import { User, LoginRequest, LoginResponse, RegisterRequest, UserRole } from '../models/auth.interface';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  private readonly API_URL = 'http://localhost:3000/auth';
+  private readonly API_URL = `${environment.apiUrl}/auth`;
   private readonly TOKEN_KEY = 'access_token';
   private readonly USER_KEY = 'current_user';
 
@@ -88,7 +89,7 @@ export class AuthService {
   logout(): void {
     // Gọi API để ghi nhận thời gian logout; không chặn UI nếu lỗi/401
     try {
-      this.http.post('http://localhost:3000/session-logs/logout', {}).subscribe({
+      this.http.post(`${environment.apiUrl}/session-logs/logout`, {}).subscribe({
         next: () => {},
         error: () => {},
       });

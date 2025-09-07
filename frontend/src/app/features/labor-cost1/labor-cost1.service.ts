@@ -6,10 +6,11 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { CreateLaborCost1Dto, LaborCost1, UpdateLaborCost1Dto } from './labor-cost1.model';
+import { environment } from '../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class LaborCost1Service {
-  private apiUrl = 'http://localhost:3000/labor-cost1';
+  private apiUrl = `${environment.apiUrl}/labor-cost1`;
   constructor(private http: HttpClient) {}
 
   list(): Observable<LaborCost1[]> { return this.http.get<LaborCost1[]>(this.apiUrl); }
