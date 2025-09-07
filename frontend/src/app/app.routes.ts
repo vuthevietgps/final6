@@ -1,33 +1,63 @@
 /**
  * File: app/app.routes.ts
- * Mục đích: Định nghĩa route của ứng dụng (client-side routing).
+ * Mục đích: Định nghĩa route của ứng dụng với authentication guards và permissions.
  */
 import { Routes } from '@angular/router';
+import { AuthGuard } from './core/guards/auth.guard';
+import { GuestGuard } from './core/guards/guest.guard';
+
 export const routes: Routes = [
+  // Authentication routes
+  {
+    path: 'login',
+    loadComponent: () => import('./features/auth/login/login.component').then(m => m.LoginComponent),
+    canActivate: [GuestGuard]
+  },
+  {
+    path: 'unauthorized',
+    loadComponent: () => import('./features/auth/unauthorized/unauthorized.component').then(m => m.UnauthorizedComponent)
+  },
+  
+  // Dashboard (default after login)
+  {
+    path: 'dashboard',
+    loadComponent: () => import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent),
+    canActivate: [AuthGuard]
+  },
+  
+  // Protected routes
   {
     path: '',
-    redirectTo: '/users',
+    redirectTo: '/dashboard',
     pathMatch: 'full'
   },
   {
     path: 'users',
-    loadChildren: () => import('./features/user/user.routes').then(m => m.userRoutes)
+    loadChildren: () => import('./features/user/user.routes').then(m => m.userRoutes),
+    canActivate: [AuthGuard],
+    data: { permissions: ['users'] }
   },
   {
     path: 'production-status',
-    loadComponent: () => import('./features/production-status/production-status.component').then(m => m.ProductionStatusComponent)
+    loadComponent: () => import('./features/production-status/production-status.component').then(m => m.ProductionStatusComponent),
+    canActivate: [AuthGuard],
+    data: { permissions: ['production-status'] }
   },
   {
     path: 'orders',
+    canActivate: [AuthGuard],
+    data: { permissions: ['orders'] },
     children: [
-  { path: 'test2', loadComponent: () => import('./features/test-order2/test-order2.component').then(m => m.TestOrder2Component) },
+      { path: 'test2', loadComponent: () => import('./features/test-order2/test-order2.component').then(m => m.TestOrder2Component) },
       { path: 'test', loadComponent: () => import('./features/test-order/test-order.component').then(m => m.TestOrderComponent) },
       { path: '', loadComponent: () => import('./features/order-status/order-status.component').then(m => m.OrderStatusComponent) }
     ]
   },
   {
     path: 'delivery-status',
-    loadComponent: () => import('./features/delivery-status/delivery-status.component').then(m => m.DeliveryStatusComponent)
+    loadComponent: () => import('./features/delivery-status/delivery-status.component').then(m => m.DeliveryStatusComponent),
+    canActivate: [AuthGuard],
+    data: { permissions: ['delivery-status'] }
   },
   {
     path: 'product-category',

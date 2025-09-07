@@ -15,6 +15,7 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { MongooseModule } from '@nestjs/mongoose';
+import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { ExportUserModule } from './export-user/export-user.module';
 import { ImportUserModule } from './import-user/import-user.module';
@@ -52,6 +53,9 @@ import { AdGroupProfitReportModule } from './ad-group-profit-report/ad-group-pro
         return connection;
       },
     }),
+    
+    // Import AuthModule để sử dụng JWT authentication
+    AuthModule,
     
   // Import UserModule để sử dụng các chức năng quản lý user
     UserModule,

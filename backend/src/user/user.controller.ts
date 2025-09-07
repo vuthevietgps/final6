@@ -22,12 +22,16 @@ import {
   Param,
   Delete,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { JwtAuthGuard, RolesGuard } from '../auth/guards/auth.guard';
+import { RequirePermissions } from '../auth/decorators/auth.decorator';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 @Controller('users') // Base route: /users
+@UseGuards(JwtAuthGuard, RolesGuard) // Bảo vệ tất cả routes với JWT
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
@@ -37,6 +41,7 @@ export class UserController {
    * @returns User vừa được tạo
    */
   @Post()
+  @RequirePermissions('users')
   create(@Body() createUserDto: CreateUserDto) {
     return this.userService.create(createUserDto);
   }
@@ -48,6 +53,7 @@ export class UserController {
    * @returns Mảng users phù hợp với filter
    */
   @Get()
+  @RequirePermissions('users')
   findAll(@Query('role') role?: string, @Query('active') active?: string) {
     if (role) {
       // Nếu có role parameter, filter theo role
@@ -67,6 +73,7 @@ export class UserController {
    * @returns User với ID đó
    */
   @Get(':id')
+  @RequirePermissions('users')
   findOne(@Param('id') id: string) {
     return this.userService.findOne(id);
   }
@@ -78,6 +85,7 @@ export class UserController {
    * @returns User sau khi update
    */
   @Patch(':id')
+  @RequirePermissions('users')
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.userService.update(id, updateUserDto);
   }
@@ -88,6 +96,7 @@ export class UserController {
    * @returns User vừa bị xóa
    */
   @Delete(':id')
+  @RequirePermissions('users')
   remove(@Param('id') id: string) {
     return this.userService.remove(id);
   }
@@ -98,6 +107,7 @@ export class UserController {
    * @returns User có email đó
    */
   @Get('email/:email')
+  @RequirePermissions('users')
   findByEmail(@Param('email') email: string) {
     return this.userService.findByEmail(email);
   }
