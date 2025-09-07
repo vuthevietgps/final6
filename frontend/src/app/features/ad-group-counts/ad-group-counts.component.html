@@ -1,0 +1,42 @@
+<div class="ad-group-counts-page">
+  <div class="toolbar">
+    <div class="left">
+      <h2>📊 Số Lượng Nhóm Quảng Cáo</h2>
+    </div>
+    <div class="right">
+      <span class="chip chip-active">Đang hoạt động: {{ totalActive() }}</span>
+      <span class="chip chip-inactive">Tạm dừng: {{ totalInactive() }}</span>
+      <span class="chip chip-total">Sản phẩm: {{ totalProducts() }}</span>
+      <button class="btn" (click)="refresh()">🔄 Làm mới</button>
+    </div>
+  </div>
+  <div class="table-wrapper" *ngIf="!isLoading(); else loadingTpl">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th class="col-product">Sản phẩm</th>
+          <th class="col-number center">Đang hoạt động</th>
+          <th class="col-number center">Tạm dừng</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let r of rows()" class="row-item">
+          <td>
+            <div class="product-cell">
+              <div class="title">{{ r.productName }}</div>
+            </div>
+          </td>
+          <td class="center"><span class="badge badge-active">{{ r.active }}</span></td>
+          <td class="center"><span class="badge badge-inactive">{{ r.inactive }}</span></td>
+        </tr>
+        <tr *ngIf="rows().length===0">
+          <td class="center muted" colspan="3">Không có dữ liệu</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <ng-template #loadingTpl>
+    <div class="loading">Đang tải...</div>
+  </ng-template>
+</div>

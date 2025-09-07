@@ -1,0 +1,190 @@
+<div class="header-section">
+  <div class="page-title">
+    <h2><span class="icon">📢</span> Quản Lý Nhóm Quảng Cáo</h2>
+  </div>
+  <div class="header-actions">
+    <button type="button" class="btn btn-primary" (click)="addNew()">➕ Thêm Nhóm</button>
+  </div>
+</div>
+
+<div *ngIf="error()" class="alert alert-danger">⚠️ {{ error() }}</div>
+<div *ngIf="isLoading()" class="loading">Đang tải...</div>
+
+<!-- Thanh tìm kiếm và lọc hiện đại -->
+<div class="toolbar" *ngIf="!isLoading()">
+  <div class="toolbar-left">
+    <div class="search-input">
+      <span class="prefix">🔎</span>
+      <input type="text" [value]="searchQuery()" (input)="searchQuery.set($any($event.target).value)" placeholder="Tìm tên hoặc ID nhóm quảng cáo...">
+    </div>
+    <button class="btn btn-primary" (click)="onSearch()">Tìm</button>
+    <button class="btn btn-ghost" (click)="resetFilters()">Đặt lại</button>
+  </div>
+  <div class="toolbar-right">
+    <div class="pills">
+      <select [value]="filterPlatform()" (change)="filterPlatform.set($any($event.target).value); onSearch()" class="pill">
+        <option value="all">Nền tảng: Tất cả</option>
+        <option value="facebook">Nền tảng: Facebook</option>
+        <option value="google">Nền tảng: Google</option>
+        <option value="ticktock">Nền tảng: Ticktock</option>
+      </select>
+      <select [value]="filterProductId()" (change)="filterProductId.set($any($event.target).value); onSearch()" class="pill">
+        <option value="all">Sản phẩm: Tất cả</option>
+        <option *ngFor="let p of products()" [value]="p._id">Sản phẩm: {{ p.name }}</option>
+      </select>
+      <select [value]="filterAgentId()" (change)="filterAgentId.set($any($event.target).value); onSearch()" class="pill">
+        <option value="all">Đại lý: Tất cả</option>
+        <option *ngFor="let u of users()" [value]="u._id">Đại lý: {{ u.fullName }}</option>
+      </select>
+      <select [value]="filterStatus()" (change)="filterStatus.set($any($event.target).value); onSearch()" class="pill">
+        <option value="all">Trạng thái: Tất cả</option>
+        <option value="active">Trạng thái: Đang hoạt động</option>
+        <option value="inactive">Trạng thái: Đã tạm dừng</option>
+      </select>
+    </div>
+  </div>
+  
+</div>
+
+<div class="table-wrapper" *ngIf="!isLoading()">
+  <table class="table">
+    <thead>
+      <tr>
+        <th (click)="setSort('name')" class="sortable">Tên Nhóm</th>
+        <th (click)="setSort('createdAt')" class="sortable">ID Nhóm QC</th>
+        <th (click)="setSort('platform')" class="sortable">Nền tảng</th>
+        <th>Sản phẩm</th>
+        <th>Đại lý</th>
+        <th>Tài khoản QC</th>
+        <th (click)="setSort('isActive')" class="sortable">Trạng thái</th>
+        <th>Ghi chú</th>
+        <th class="actions-col">Hành động</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let g of adGroups()" [class.editing-row]="isEditing(g._id!)">
+        <!-- Tên Nhóm -->
+        <td>
+          <div class="cell-with-avatar" *ngIf="!isEditing(g._id!)">
+            <div class="avatar">{{ getInitials(g.name) }}</div>
+            <div>
+              <div class="cell-title">{{ g.name }}</div>
+              <div class="cell-sub">Tạo: {{ g.createdAt | date:'dd/MM/yyyy HH:mm' }}</div>
+            </div>
+          </div>
+          <input 
+            *ngIf="isEditing(g._id!)" 
+            type="text" 
+            class="form-control-inline" 
+            [value]="g.name" 
+            (blur)="updateField(g, 'name', $any($event.target).value)"
+            (keyup.enter)="updateField(g, 'name', $any($event.target).value)"
+            placeholder="Tên nhóm quảng cáo">
+        </td>
+
+        <!-- ID Nhóm QC -->
+        <td>
+          <code class="mono id-chip" *ngIf="!isEditing(g._id!)">{{ g.adGroupId }}</code>
+          <input 
+            *ngIf="isEditing(g._id!)" 
+            type="text" 
+            class="form-control-inline" 
+            [value]="g.adGroupId" 
+            (blur)="updateField(g, 'adGroupId', $any($event.target).value)"
+            (keyup.enter)="updateField(g, 'adGroupId', $any($event.target).value)"
+            placeholder="ID nhóm quảng cáo">
+        </td>
+
+        <!-- Nền tảng -->
+        <td class="platform">
+          <span *ngIf="!isEditing(g._id!)" class="pf-badge" [class.fb]="g.platform==='facebook'" [class.gg]="g.platform==='google'" [class.tt]="g.platform==='ticktock'">
+            {{ g.platform }}
+          </span>
+          <select 
+            *ngIf="isEditing(g._id!)" 
+            class="form-control-inline" 
+            [value]="g.platform" 
+            (change)="updateField(g, 'platform', $any($event.target).value)">
+            <option value="facebook">Facebook</option>
+            <option value="google">Google</option>
+            <option value="ticktock">Ticktock</option>
+          </select>
+        </td>
+
+        <!-- Sản phẩm -->
+        <td>
+          <span *ngIf="!isEditing(g._id!)">{{ getProductName(g.productId) }}</span>
+          <select 
+            *ngIf="isEditing(g._id!)" 
+            class="form-control-inline" 
+            [value]="g.productId" 
+            (change)="updateField(g, 'productId', $any($event.target).value)">
+            <option value="" disabled>-- Chọn sản phẩm --</option>
+            <option *ngFor="let p of products()" [value]="p._id">{{ p.name }}</option>
+          </select>
+        </td>
+
+        <!-- Đại lý -->
+        <td>
+          <span *ngIf="!isEditing(g._id!)">{{ getUserName(g.agentId) }}</span>
+          <select 
+            *ngIf="isEditing(g._id!)" 
+            class="form-control-inline" 
+            [value]="g.agentId" 
+            (change)="updateField(g, 'agentId', $any($event.target).value)">
+            <option value="" disabled>-- Chọn đại lý --</option>
+            <option *ngFor="let u of users()" [value]="u._id">{{ u.fullName }}</option>
+          </select>
+        </td>
+
+        <!-- Tài khoản QC -->
+        <td>
+          <span *ngIf="!isEditing(g._id!)">{{ getAdAccountName(g.adAccountId) }}</span>
+          <select 
+            *ngIf="isEditing(g._id!)" 
+            class="form-control-inline" 
+            [value]="g.adAccountId" 
+            (change)="updateField(g, 'adAccountId', $any($event.target).value)">
+            <option value="" disabled>-- Chọn tài khoản --</option>
+            <option *ngFor="let acc of adAccounts()" [value]="acc._id">{{ acc.name }} ({{ acc.accountId }})</option>
+          </select>
+        </td>
+
+        <!-- Trạng thái -->
+        <td>
+          <span class="status" [class.active]="g.isActive" (click)="toggleActive(g)">
+            {{ g.isActive ? 'Đang hoạt động' : 'Đã tạm dừng' }}
+          </span>
+        </td>
+
+        <!-- Ghi chú -->
+        <td class="notes">
+          <span *ngIf="!isEditing(g._id!)" [title]="g.notes || ''">{{ g.notes || '-' }}</span>
+          <input 
+            *ngIf="isEditing(g._id!)" 
+            type="text" 
+            class="form-control-inline" 
+            [value]="g.notes || ''" 
+            (blur)="updateField(g, 'notes', $any($event.target).value)"
+            (keyup.enter)="updateField(g, 'notes', $any($event.target).value)"
+            placeholder="Ghi chú">
+        </td>
+
+        <!-- Hành động -->
+        <td class="row-actions">
+          <div *ngIf="!isEditing(g._id!)">
+            <button class="btn-icon" (click)="startEdit(g._id!)" title="Chỉnh sửa">✏️</button>
+            <button class="btn-icon danger" (click)="remove(g)" title="Xóa">🗑️</button>
+          </div>
+          <div *ngIf="isEditing(g._id!)" class="edit-actions">
+            <button class="btn-icon success" (click)="saveEdit(g)" title="Lưu">✅</button>
+            <button class="btn-icon secondary" (click)="cancelEdit(g._id!)" title="Hủy">❌</button>
+          </div>
+        </td>
+      </tr>
+      <tr *ngIf="adGroups().length === 0">
+        <td colspan="9" class="empty">Chưa có nhóm quảng cáo nào. Nhấn "Thêm Nhóm" để thêm mới.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

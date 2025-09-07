@@ -1,0 +1,68 @@
+<div class="summary2-page">
+  <div class="toolbar">
+    <input class="input" type="text" placeholder="Tìm kiếm" [ngModel]="q()" (ngModelChange)="q.set($event)" />
+    <input class="input" type="date" [ngModel]="from()" (ngModelChange)="from.set($event)" />
+    <input class="input" type="date" [ngModel]="to()" (ngModelChange)="to.set($event)" />
+    <button class="btn" (click)="refresh()">Tải</button>
+    <div class="totals">
+      <span>Doanh thu: <b>{{ fmt(totalRevenue()) }}</b></span>
+      <span>Lợi nhuận: <b>{{ fmt(totalProfit()) }}</b></span>
+    </div>
+  </div>
+
+  <div *ngIf="!isLoading(); else loadingTpl" class="table-wrapper">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Ngày</th>
+          <th>Khách hàng</th>
+          <th>Sản phẩm</th>
+          <th>SL</th>
+          <th>TT SX</th>
+          <th>TT Vận đơn</th>
+          <th>Mã vận đơn</th>
+          <th>Quote</th>
+          <th>Phải trả</th>
+          <th>Đã trả</th>
+          <th>Cần trả</th>
+          <th>CP Ads</th>
+          <th>CP Nhân công</th>
+          <th>CP Khác</th>
+          <th>Giá vốn</th>
+          <th>Doanh thu</th>
+          <th>Lợi nhuận</th>
+          <th>Nhóm QC</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let r of filtered()">
+          <td>{{ fmtDate(r.createdAt) }}</td>
+          <td>{{ r.customerName }}</td>
+          <td>{{ r.product }}</td>
+          <td class="right">{{ r.quantity }}</td>
+          <td>{{ r.productionStatus }}</td>
+          <td>{{ r.orderStatus }}</td>
+          <td>{{ r.trackingNumber }}</td>
+          <td class="right">{{ fmt(r.quotePrice) }}</td>
+          <td class="right">{{ fmt(r.mustPay) }}</td>
+          <td class="right">{{ fmt(r.paid) }}</td>
+          <td class="right">{{ fmt(r.needToPay) }}</td>
+          <td class="right">{{ fmt(r.adsCost) }}</td>
+          <td class="right">{{ fmt(r.laborCost) }}</td>
+          <td class="right">{{ fmt(r.otherCost) }}</td>
+          <td class="right">{{ fmt(r.capitalCost) }}</td>
+          <td class="right">{{ fmt(r.revenue) }}</td>
+          <td class="right">{{ fmt(r.profit) }}</td>
+          <td>{{ r.adGroupId }}</td>
+        </tr>
+        <tr *ngIf="filtered().length===0">
+          <td class="center" colspan="18">Không có dữ liệu</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <ng-template #loadingTpl>
+    <div class="loading">Đang tải...</div>
+  </ng-template>
+</div>

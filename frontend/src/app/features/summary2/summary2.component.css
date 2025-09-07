@@ -1,0 +1,11 @@
+.toolbar{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.input{padding:6px 8px;border:1px solid #d1d5db;border-radius:6px}
+.btn{padding:6px 10px;border:1px solid #d1d5db;background:#fff;border-radius:6px;cursor:pointer}
+.totals{margin-left:auto;display:flex;gap:16px}
+.table-wrapper{overflow:auto;max-height:calc(100vh - 220px);border:1px solid #f0f0f0;border-radius:6px}
+.data-table{width:max-content;min-width:100%;border-collapse:collapse}
+.data-table th,.data-table td{border:1px solid #e5e7eb;padding:6px 10px;white-space:nowrap}
+.data-table th{background:#f8fafc;text-align:left}
+.right{text-align:right}
+.center{text-align:center}
+.loading{padding:16px}

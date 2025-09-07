@@ -1,0 +1,82 @@
+<div class="container">
+  <h2>📢 Chi Phí Quảng Cáo</h2>
+
+  <div class="toolbar">
+  <button (click)="addNew()">+ Thêm mới</button>
+    <div class="summary" *ngIf="summary() as s">
+      <span>Tổng chi: {{ s.totalSpent | number:'1.0-0' }}</span>
+      <span>Số bản ghi: {{ s.count }}</span>
+      <span>Avg CPM: {{ s.avgCPM | number:'1.0-2' }}</span>
+      <span>Avg CPC: {{ s.avgCPC | number:'1.0-2' }}</span>
+    </div>
+  </div>
+
+  <div *ngIf="error()" class="error">{{ error() }}</div>
+
+  <table class="list">
+    <thead>
+      <tr>
+        <th>Ngày (MM/DD/YYYY)</th>
+        <th>Tần suất</th>
+        <th>ID Nhóm QC</th>
+        <th>Đã chi</th>
+        <th>CPM</th>
+        <th>CPC</th>
+        <th>Hành động</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let r of items()">
+        <td>{{ r.date }}</td>
+        <td>{{ r.frequency || '-' }}</td>
+        <td>{{ r.adGroupId }}</td>
+        <td>{{ r.spentAmount || 0 }}</td>
+        <td>{{ r.cpm || 0 }}</td>
+        <td>{{ r.cpc || 0 }}</td>
+        <td>
+          <button (click)="openEdit(r)">Sửa</button>
+          <button (click)="remove(r._id!)">Xóa</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Modal (không dùng khi tạo nhanh) -->
+  <div class="modal" *ngIf="false && showModal()">
+    <div class="modal-content">
+      <h3>{{ editingId ? 'Cập nhật' : 'Thêm mới' }} Chi Phí Quảng Cáo</h3>
+      <form [formGroup]="form" (ngSubmit)="save()">
+        <div class="form-row">
+          <label>Ngày (MM/DD/YYYY)</label>
+     <input type="text" placeholder="MM/DD/YYYY"
+       [value]="getDateInputValue()"
+       (input)="form.patchValue({ date: $any($event.target).value })" />
+        </div>
+        <div class="form-row">
+          <label>Tần suất</label>
+          <input type="number" formControlName="frequency" />
+        </div>
+        <div class="form-row">
+          <label>ID Nhóm quảng cáo</label>
+          <input type="text" formControlName="adGroupId" required />
+        </div>
+        <div class="form-row">
+          <label>Đã chi</label>
+          <input type="number" formControlName="spentAmount" />
+        </div>
+        <div class="form-row">
+          <label>CPM</label>
+          <input type="number" formControlName="cpm" />
+        </div>
+        <div class="form-row">
+          <label>CPC</label>
+          <input type="number" formControlName="cpc" />
+        </div>
+        <div class="actions">
+          <button type="submit" [disabled]="form.invalid">Lưu</button>
+          <button type="button" (click)="closeModal()">Đóng</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

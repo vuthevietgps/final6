@@ -1,0 +1,42 @@
+<nav class="sidebar">
+  <div class="sidebar-header">
+    <h3>Hệ Thống Quản Lý</h3>
+  </div>
+  
+  <ul class="menu-list">
+    <li *ngFor="let item of menuItems" class="menu-item">
+      <!-- Mục không có submenu: cả dòng là link điều hướng -->
+      <a *ngIf="!item.children?.length"
+         class="menu-link link-content"
+         [routerLink]="item.route"
+         routerLinkActive="active">
+        <span class="icon">{{ item.icon }}</span>
+        <span class="label">{{ item.label }}</span>
+      </a>
+
+      <!-- Mục có submenu: click để mở rộng/thu gọn -->
+      <div *ngIf="item.children?.length"
+           class="menu-link has-children"
+           (click)="toggleExpanded(item.route)">
+        <div class="link-content expandable">
+          <span class="icon">{{ item.icon }}</span>
+          <span class="label">{{ item.label }}</span>
+          <span class="expand-icon" [class.expanded]="isExpanded(item.route)">
+            ▼
+          </span>
+        </div>
+      </div>
+
+      <ul *ngIf="item.children?.length && isExpanded(item.route)" class="submenu">
+        <li *ngFor="let child of item.children" class="submenu-item">
+          <a [routerLink]="child.route"
+             routerLinkActive="active"
+             class="submenu-link">
+            <span class="icon">{{ child.icon }}</span>
+            <span class="label">{{ child.label }}</span>
+          </a>
+        </li>
+      </ul>
+    </li>
+  </ul>
+</nav>

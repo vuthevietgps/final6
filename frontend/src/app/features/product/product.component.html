@@ -1,0 +1,461 @@
+<div class="product-container">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <h1>🛍️ Quản Lý Sản Phẩm</h1>
+      <p>Quản lý thông tin sản phẩm trong hệ thống</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-primary" (click)="openAddModal()">
+        <span class="icon">➕</span>
+        Thêm Mới
+      </button>
+      <button class="btn btn-secondary" (click)="seedData()">
+        <span class="icon">🌱</span>
+        Tạo Dữ Liệu Mẫu
+      </button>
+    </div>
+  </div>
+
+  <!-- Statistics Cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon">📦</div>
+      <div class="stat-content">
+        <div class="stat-number">{{ stats().totalProducts }}</div>
+        <div class="stat-label">Tổng Sản Phẩm</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">💰</div>
+      <div class="stat-content">
+        <div class="stat-number">{{ formatCurrency(stats().totalValue) }}</div>
+        <div class="stat-label">Tổng Giá Trị</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">📊</div>
+      <div class="stat-content">
+        <div class="stat-number">{{ formatCurrency(stats().averageImportPrice) }}</div>
+        <div class="stat-label">Giá Nhập TB</div>
+      </div>
+    </div>
+    <div class="stat-card warning">
+      <div class="stat-icon">⚠️</div>
+      <div class="stat-content">
+        <div class="stat-number">{{ stats().lowStockCount }}</div>
+        <div class="stat-label">Sắp Hết Hàng</div>
+      </div>
+    </div>
+    <div class="stat-card danger">
+      <div class="stat-icon">🚫</div>
+      <div class="stat-content">
+        <div class="stat-number">{{ stats().outOfStockCount }}</div>
+        <div class="stat-label">Hết Hàng</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="error()" class="error-banner" (click)="clearError()">
+    <span class="error-icon">⚠️</span>
+    <span class="error-text">{{ error() }}</span>
+    <span class="error-close">✕</span>
+  </div>
+
+  <!-- Search and Filters -->
+  <div class="filters">
+    <div class="filter-group">
+      <input
+        type="text"
+        placeholder="🔍 Tìm kiếm sản phẩm..."
+        class="search-input"
+        [value]="searchTerm()"
+        (input)="onSearchChange($event)"
+      />
+    </div>
+    <div class="filter-group">
+      <select
+        class="filter-select"
+        [value]="selectedStatus()"
+        (change)="onStatusFilterChange($event)"
+      >
+        <option value="all">Tất cả trạng thái</option>
+        <option value="Hoạt động">Hoạt động</option>
+        <option value="Tạm dừng">Tạm dừng</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <select
+        class="filter-select"
+        [value]="selectedCategory()"
+        (change)="onCategoryFilterChange($event)"
+      >
+        <option value="all">Tất cả danh mục</option>
+        <option *ngFor="let category of categories()" [value]="category._id">
+          {{ category.icon }} {{ category.name }}
+        </option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Products Table -->
+  <div class="table-container">
+    <div *ngIf="isLoading()" class="loading">
+      <div class="spinner"></div>
+      <p>Đang tải dữ liệu...</p>
+    </div>
+
+    <table *ngIf="!isLoading()" class="products-table">
+      <thead>
+        <tr>
+          <th>Mã SKU</th>
+          <th>Tên Sản Phẩm</th>
+          <th>Danh Mục</th>
+          <th>Giá Nhập</th>
+          <th>Trạng Thái</th>
+          <th>Thao Tác</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let product of filteredProducts()" class="product-row">
+          <td class="sku-cell">{{ product.sku }}</td>
+          <td class="name-cell">
+            <div class="product-name">{{ product.name }}</div>
+            <div *ngIf="product.notes" class="product-notes">{{ product.notes }}</div>
+          </td>
+          <td class="category-cell">
+            <div class="category-badge" [style.background-color]="product.categoryId.color">
+              <span class="category-icon">{{ product.categoryId.icon }}</span>
+              <span class="category-name">{{ product.categoryId.name }}</span>
+            </div>
+          </td>
+          <td class="price-cell">{{ formatCurrency(product.importPrice) }}</td>
+          <td class="status-cell">
+            <span class="status-badge" [class]="product.status === 'Hoạt động' ? 'active' : 'inactive'">
+              {{ product.status }}
+            </span>
+          </td>
+          <td class="actions-cell">
+            <button class="btn-icon btn-edit" (click)="openEditModal(product)" title="Chỉnh sửa">
+              ✏️
+            </button>
+            <button class="btn-icon btn-delete" (click)="deleteProduct(product)" title="Xóa">
+              🗑️
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div *ngIf="!isLoading() && filteredProducts().length === 0" class="empty-state">
+      <div class="empty-icon">📦</div>
+      <h3>Không có sản phẩm nào</h3>
+      <p>Hãy thêm sản phẩm đầu tiên hoặc điều chỉnh bộ lọc tìm kiếm</p>
+      <button class="btn btn-primary" (click)="openAddModal()">
+        <span class="icon">➕</span>
+        Thêm Sản Phẩm Đầu Tiên
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Product Modal -->
+<div *ngIf="isAddModalOpen()" class="modal-overlay" (click)="closeAddModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>➕ Thêm Sản Phẩm Mới</h2>
+      <button class="modal-close" (click)="closeAddModal()">✕</button>
+    </div>
+
+    <form class="modal-form" (ngSubmit)="createProduct()">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="name">Tên Sản Phẩm *</label>
+          <input
+            type="text"
+            id="name"
+            required
+            [value]="formData().name"
+            (input)="onInputChange('name', $event)"
+            placeholder="Nhập tên sản phẩm"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="categoryId">Danh Mục *</label>
+          <select
+            id="categoryId"
+            required
+            [value]="formData().categoryId"
+            (change)="onInputChange('categoryId', $event)"
+          >
+            <option value="">Chọn danh mục</option>
+            <option *ngFor="let category of categories()" [value]="category._id">
+              {{ category.icon }} {{ category.name }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="importPrice">Giá Nhập (VND) *</label>
+          <input
+            type="number"
+            id="importPrice"
+            required
+            min="0"
+            step="1000"
+            [value]="formData().importPrice"
+            (input)="onInputChange('importPrice', $event)"
+            placeholder="0"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="shippingCost">Chi Phí Vận Chuyển (VND)</label>
+          <input
+            type="number"
+            id="shippingCost"
+            min="0"
+            step="1000"
+            [value]="formData().shippingCost"
+            (input)="onInputChange('shippingCost', $event)"
+            placeholder="0"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="packagingCost">Chi Phí Đóng Gói (VND)</label>
+          <input
+            type="number"
+            id="packagingCost"
+            min="0"
+            step="1000"
+            [value]="formData().packagingCost"
+            (input)="onInputChange('packagingCost', $event)"
+            placeholder="0"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="minStock">Tồn Kho Tối Thiểu</label>
+          <input
+            type="number"
+            id="minStock"
+            min="0"
+            [value]="formData().minStock"
+            (input)="onInputChange('minStock', $event)"
+            placeholder="10"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="maxStock">Tồn Kho Tối Đa</label>
+          <input
+            type="number"
+            id="maxStock"
+            min="0"
+            [value]="formData().maxStock"
+            (input)="onInputChange('maxStock', $event)"
+            placeholder="100"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="estimatedDeliveryDays">Thời Gian Giao Hàng (ngày)</label>
+          <input
+            type="number"
+            id="estimatedDeliveryDays"
+            min="1"
+            [value]="formData().estimatedDeliveryDays"
+            (input)="onInputChange('estimatedDeliveryDays', $event)"
+            placeholder="1"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="status">Trạng Thái</label>
+          <select
+            id="status"
+            [value]="formData().status"
+            (change)="onInputChange('status', $event)"
+          >
+            <option value="Hoạt động">Hoạt động</option>
+            <option value="Tạm dừng">Tạm dừng</option>
+          </select>
+        </div>
+
+        <div class="form-group full-width">
+          <label for="notes">Ghi Chú</label>
+          <textarea
+            id="notes"
+            rows="3"
+            [value]="formData().notes"
+            (input)="onInputChange('notes', $event)"
+            placeholder="Ghi chú về sản phẩm..."
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeAddModal()">
+          Hủy
+        </button>
+        <button type="submit" class="btn btn-primary" [disabled]="isLoading()">
+          <span *ngIf="isLoading()" class="spinner small"></span>
+          {{ isLoading() ? 'Đang tạo...' : 'Tạo Sản Phẩm' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Product Modal -->
+<div *ngIf="isEditModalOpen()" class="modal-overlay" (click)="closeEditModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>✏️ Chỉnh Sửa Sản Phẩm</h2>
+      <button class="modal-close" (click)="closeEditModal()">✕</button>
+    </div>
+
+    <form class="modal-form" (ngSubmit)="updateProduct()">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="edit-name">Tên Sản Phẩm *</label>
+          <input
+            type="text"
+            id="edit-name"
+            required
+            [value]="formData().name"
+            (input)="onInputChange('name', $event)"
+            placeholder="Nhập tên sản phẩm"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="edit-categoryId">Danh Mục *</label>
+          <select
+            id="edit-categoryId"
+            required
+            [value]="formData().categoryId"
+            (change)="onInputChange('categoryId', $event)"
+          >
+            <option value="">Chọn danh mục</option>
+            <option *ngFor="let category of categories()" [value]="category._id">
+              {{ category.icon }} {{ category.name }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="edit-importPrice">Giá Nhập (VND) *</label>
+          <input
+            type="number"
+            id="edit-importPrice"
+            required
+            min="0"
+            step="1000"
+            [value]="formData().importPrice"
+            (input)="onInputChange('importPrice', $event)"
+            placeholder="0"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="edit-shippingCost">Chi Phí Vận Chuyển (VND)</label>
+          <input
+            type="number"
+            id="edit-shippingCost"
+            min="0"
+            step="1000"
+            [value]="formData().shippingCost"
+            (input)="onInputChange('shippingCost', $event)"
+            placeholder="0"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="edit-packagingCost">Chi Phí Đóng Gói (VND)</label>
+          <input
+            type="number"
+            id="edit-packagingCost"
+            min="0"
+            step="1000"
+            [value]="formData().packagingCost"
+            (input)="onInputChange('packagingCost', $event)"
+            placeholder="0"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="edit-minStock">Tồn Kho Tối Thiểu</label>
+          <input
+            type="number"
+            id="edit-minStock"
+            min="0"
+            [value]="formData().minStock"
+            (input)="onInputChange('minStock', $event)"
+            placeholder="10"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="edit-maxStock">Tồn Kho Tối Đa</label>
+          <input
+            type="number"
+            id="edit-maxStock"
+            min="0"
+            [value]="formData().maxStock"
+            (input)="onInputChange('maxStock', $event)"
+            placeholder="100"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="edit-estimatedDeliveryDays">Thời Gian Giao Hàng (ngày)</label>
+          <input
+            type="number"
+            id="edit-estimatedDeliveryDays"
+            min="1"
+            [value]="formData().estimatedDeliveryDays"
+            (input)="onInputChange('estimatedDeliveryDays', $event)"
+            placeholder="1"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="edit-status">Trạng Thái</label>
+          <select
+            id="edit-status"
+            [value]="formData().status"
+            (change)="onInputChange('status', $event)"
+          >
+            <option value="Hoạt động">Hoạt động</option>
+            <option value="Tạm dừng">Tạm dừng</option>
+          </select>
+        </div>
+
+        <div class="form-group full-width">
+          <label for="edit-notes">Ghi Chú</label>
+          <textarea
+            id="edit-notes"
+            rows="3"
+            [value]="formData().notes"
+            (input)="onInputChange('notes', $event)"
+            placeholder="Ghi chú về sản phẩm..."
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeEditModal()">
+          Hủy
+        </button>
+        <button type="submit" class="btn btn-primary" [disabled]="isLoading()">
+          <span *ngIf="isLoading()" class="spinner small"></span>
+          {{ isLoading() ? 'Đang cập nhật...' : 'Cập Nhật' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

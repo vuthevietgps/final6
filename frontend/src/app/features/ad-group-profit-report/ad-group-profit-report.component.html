@@ -1,0 +1,166 @@
+<!-- Template: Báo cáo lợi nhuận quảng cáo theo ngày (đồng bộ phong cách với Lợi Nhuận Sản Phẩm Theo Ngày) -->
+<div class="product-profit-report">
+  <!-- Header -->
+  <div class="header">
+    <h2>� Báo Cáo Lợi Nhuận Quảng Cáo Theo Ngày</h2>
+    <p class="description">Dựa trên dữ liệu từ Tổng hợp 2, hiển thị lợi nhuận của từng nhóm quảng cáo theo từng ngày</p>
+  </div>
+
+  <!-- Filter Panel -->
+  <div class="filter-panel">
+    <div class="filter-grid">
+      <!-- Period Filter -->
+      <div class="filter-group">
+        <label>Khoảng thời gian:</label>
+        <select [ngModel]="query.period" (ngModelChange)="onPeriodChange()">
+          <option *ngFor="let option of periodOptions" [value]="option.value">{{ option.label }}</option>
+        </select>
+      </div>
+
+      <!-- Custom Date Range -->
+      <div class="filter-group" *ngIf="isCustomPeriod()">
+        <label>Từ ngày:</label>
+        <input type="date" [ngModel]="query.fromDate" (ngModelChange)="onCustomDateChange()" />
+      </div>
+      <div class="filter-group" *ngIf="isCustomPeriod()">
+        <label>Đến ngày:</label>
+        <input type="date" [ngModel]="query.toDate" (ngModelChange)="onCustomDateChange()" />
+      </div>
+
+      <!-- Ad Group Filter -->
+      <div class="filter-group">
+        <label>Nhóm quảng cáo:</label>
+        <select [ngModel]="query.adGroupId" (ngModelChange)="onFilterChange()">
+          <option value="">Tất cả</option>
+          <option *ngFor="let adGroup of adGroups()" [value]="adGroup.adGroupId">{{ adGroup.name }}</option>
+        </select>
+      </div>
+
+      <!-- Date window sliders -->
+      <div class="filter-group" *ngIf="hasData()">
+        <label>Số ngày hiển thị:</label>
+        <input type="range" min="7" max="120" [ngModel]="windowSize()" (ngModelChange)="setWindowSize($event)" />
+      </div>
+      <div class="filter-group" *ngIf="hasData()">
+        <label>Dịch sang phải/trái:</label>
+        <input type="range" [min]="0" [max]="maxStartIndex()" [ngModel]="startIndex()" (ngModelChange)="setStartIndex($event)" />
+      </div>
+
+      <!-- Actions -->
+      <div class="filter-actions">
+        <button class="btn-reset" (click)="resetFilters()">🔄 Đặt lại</button>
+        <button class="btn-export" (click)="exportToCSV()" [disabled]="!hasData()">📊 Xuất CSV</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading()" class="loading">
+    <div class="spinner"></div>
+    <p>Đang tải dữ liệu...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error()" class="error">
+    <p>❌ {{ error() }}</p>
+    <button (click)="loadReport()">Thử lại</button>
+  </div>
+
+  <!-- Summary -->
+  <div *ngIf="hasData() && report()?.summary" class="summary-panel">
+    <div class="summary-grid">
+      <div class="summary-card">
+        <span class="summary-label">Tổng lợi nhuận</span>
+        <span class="summary-value profit" [class]="getProfitClass(report()!.summary.totalProfit)">
+          {{ formatCurrency(report()!.summary.totalProfit) }}
+        </span>
+      </div>
+      <div class="summary-card">
+        <span class="summary-label">Tổng doanh thu</span>
+        <span class="summary-value revenue">{{ formatCurrency(report()!.summary.totalRevenue) }}</span>
+      </div>
+      <div class="summary-card">
+        <span class="summary-label">Tổng chi phí</span>
+        <span class="summary-value cost">{{ formatCurrency(report()!.summary.totalCost) }}</span>
+      </div>
+      <div class="summary-card">
+        <span class="summary-label">Tổng đơn</span>
+        <span class="summary-value quantity">{{ report()!.summary.totalOrders | number }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Table -->
+  <div *ngIf="hasData()" class="table-container">
+    <table class="profit-table">
+      <thead>
+        <tr>
+          <th class="product-column">Nhóm quảng cáo</th>
+          <th class="chart-column">Biểu đồ</th>
+          <th *ngFor="let d of visibleDates()" class="cost-column">{{ formatDate(d) }}</th>
+          <th *ngFor="let d of visibleDates()" class="date-column">{{ formatDate(d) }}</th>
+          <th class="total-column">Tổng</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of report()!.data">
+          <td class="product-name">
+            <span class="adgroup-name">{{ row.adGroupName }}</span>
+            <span class="adgroup-id">&#123; {{ row.adGroupId }} &#125;</span>
+          </td>
+          <td class="chart-cell">
+            <button class="chart-btn" (click)="showChart(row)" title="Xem biểu đồ tăng trưởng lợi nhuận">📊</button>
+          </td>
+          <!-- Cost cells per day (headers are dates without 'CP') -->
+          <td *ngFor="let d of visibleDates()" class="cost-cell">
+            {{ formatCurrency(row.dailyCosts?.[d] || 0) }}
+          </td>
+          <td *ngFor="let d of visibleDates()" class="profit-cell" [class]="getProfitClass(row.dailyProfits[d] || 0)">
+            {{ formatCurrency(row.dailyProfits[d] || 0) }}
+          </td>
+          <td class="total-cell" [class]="getProfitClass(row.totalProfit)">{{ formatCurrency(row.totalProfit) }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- No Data -->
+  <div *ngIf="!loading() && !error() && !hasData()" class="no-data">
+    <div class="no-data-icon">📊</div>
+    <h3>Không có dữ liệu</h3>
+    <p>Không tìm thấy dữ liệu cho khoảng thời gian đã chọn.</p>
+    <button (click)="resetFilters()">Đặt lại bộ lọc</button>
+  </div>
+
+  <!-- Chart Modal -->
+  <div *ngIf="showChartModal()" class="chart-modal-overlay" (click)="closeChart()">
+    <div class="chart-modal" (click)="$event.stopPropagation()">
+      <div class="chart-header">
+        <h3>📈 Biểu Đồ Lợi Nhuận: {{ selectedAdGroupChart()?.adGroupName }}</h3>
+        <button class="close-btn" (click)="closeChart()">✕</button>
+      </div>
+      <div class="chart-content">
+        <div class="chart-container">
+          <canvas #chartCanvas width="800" height="400"></canvas>
+        </div>
+        <div class="chart-legend">
+          <div class="legend-item"><span class="legend-color profit"></span><span>Lợi nhuận (đường)</span></div>
+        </div>
+        <div class="chart-summary" *ngIf="selectedAdGroupChart()">
+          <div class="summary-item">
+            <span class="label">Tổng lợi nhuận:</span>
+            <span class="value" [class]="getProfitClass(getTotalChartProfit())">{{ formatCurrency(getTotalChartProfit()) }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">Lợi nhuận trung bình/ngày:</span>
+            <span class="value" [class]="getProfitClass(getAverageChartProfit())">{{ formatCurrency(getAverageChartProfit()) }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">Ngày tốt nhất:</span>
+            <span class="value">{{ getBestChartDay() }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
