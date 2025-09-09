@@ -32,6 +32,33 @@ webtest3/
 
 ## Cài Đặt và Chạy
 
+### Phương pháp 1: Sử dụng VS Code Tasks (Khuyến nghị)
+
+1. **Mở project trong VS Code**
+2. **Sử dụng Command Palette** (`Ctrl+Shift+P`):
+   - `Tasks: Run Task` → `Start All (Backend + Frontend)` - Khởi động cả hai
+   - `Tasks: Run Task` → `Start Backend` - Chỉ khởi động backend
+   - `Tasks: Run Task` → `Start Frontend` - Chỉ khởi động frontend
+   - `Tasks: Run Task` → `Install All Dependencies` - Cài đặt tất cả dependencies
+
+3. **Hoặc sử dụng keyboard shortcut**:
+   - `Ctrl+Shift+P` → `Tasks: Run Build Task` (chạy task mặc định)
+
+### Phương pháp 2: Sử dụng Scripts
+
+**Windows (PowerShell):**
+```powershell
+.\start.ps1
+```
+
+**Linux/macOS (Bash):**
+```bash
+chmod +x start.sh
+./start.sh
+```
+
+### Phương pháp 3: Manual Setup
+
 ### 1. Cài đặt MongoDB
 
 Đảm bảo MongoDB đang chạy trên `mongodb://localhost:27017/management-system`
@@ -55,6 +82,33 @@ npm start
 ```
 
 Frontend sẽ chạy tại: http://localhost:4200
+
+## VS Code Tasks Có Sẵn
+
+Project đã được cấu hình với các VS Code tasks để dễ dàng phát triển:
+
+### Development Tasks
+- **Start All (Backend + Frontend)** - Khởi động cả backend và frontend song song
+- **Start Backend** - Khởi động backend server với watch mode  
+- **Start Frontend** - Khởi động frontend development server
+- **Build Backend** - Build backend thành production
+- **Build Frontend** - Build frontend thành production
+
+### Installation Tasks  
+- **Install All Dependencies** - Cài đặt dependencies cho cả backend và frontend
+- **Install Backend Dependencies** - Chỉ cài đặt dependencies cho backend
+- **Install Frontend Dependencies** - Chỉ cài đặt dependencies cho frontend
+
+### Cách sử dụng Tasks
+1. Mở Command Palette: `Ctrl+Shift+P` (Windows/Linux) hoặc `Cmd+Shift+P` (macOS)
+2. Gõ: `Tasks: Run Task`
+3. Chọn task bạn muốn chạy
+4. Hoặc sử dụng `Ctrl+Shift+P` → `Tasks: Run Build Task` để chạy task mặc định
+
+### Debug Configuration
+Project cũng đã được cấu hình debug cho backend:
+- **Debug Backend** - Debug backend application
+- **Debug Backend (attach)** - Attach vào backend process đang chạy
 
 ## Tính Năng Hiện Tại
 

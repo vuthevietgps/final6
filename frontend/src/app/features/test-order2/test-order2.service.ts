@@ -26,4 +26,32 @@ export class TestOrder2Service {
   create(data: CreateTestOrder2): Observable<TestOrder2> { return this.http.post<TestOrder2>(this.baseUrl, data); }
   update(id: string, data: UpdateTestOrder2): Observable<TestOrder2> { return this.http.patch<TestOrder2>(`${this.baseUrl}/${id}`, data); }
   delete(id: string): Observable<{ message: string }> { return this.http.delete<{ message: string }>(`${this.baseUrl}/${id}`); }
+
+  // Upload file import
+  importFromFile(file: File): Observable<{
+    success: number;
+    errors: Array<{ row: number; error: string; data?: any }>;
+    message: string;
+  }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{
+      success: number;
+      errors: Array<{ row: number; error: string; data?: any }>;
+      message: string;
+    }>(`${this.baseUrl}/import`, formData);
+  }
+
+  // Export template
+  getTemplate(): Observable<{
+    headers: string[];
+    sampleData: any[];
+    instructions: string[];
+  }> {
+    return this.http.get<{
+      headers: string[];
+      sampleData: any[];
+      instructions: string[];
+    }>(`${this.baseUrl}/export/template`);
+  }
 }

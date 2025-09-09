@@ -1,49 +1,51 @@
 <div class="test-order2-page">
   <div class="toolbar">
     <div class="left">
-      <button class="btn btn-primary" (click)="addNew()">➕ Thêm mới</button>
-      <button class="btn" (click)="refresh()">🔄 Làm mới</button>
-      <button class="btn btn-success" (click)="downloadCSV()">📥 Tải CSV</button>
+      <button class="btn btn-primary" (click)="addNew()" aria-label="Thêm đơn mới">➕ Thêm mới</button>
+      <button class="btn" (click)="refresh()" aria-label="Làm mới dữ liệu">🔄 Làm mới</button>
+      <button class="btn btn-success" (click)="downloadCSV()" aria-label="Tải CSV">📥 Tải CSV</button>
+      <button class="btn btn-warning" (click)="openUploadModal()" aria-label="Tải lên & Cập nhật">📤 Tải lên & Cập nhật</button>
     </div>
-    <div class="filters-container">
-      <!-- Hàng 1: Tìm kiếm và các bộ lọc cơ bản -->
-      <div class="filter-row">
-        <input class="input" type="text" placeholder="Tìm KH/SĐT/mã vận đơn" [ngModel]="q()" (ngModelChange)="q.set($event)" />
-        <select class="select" [ngModel]="selectedProduct()" (ngModelChange)="selectedProduct.set($event)">
-          <option value="all">Sản phẩm: Tất cả</option>
-          <option *ngFor="let p of products()" [value]="p._id">{{ p.name }}</option>
-        </select>
-        <select class="select" [ngModel]="selectedAgent()" (ngModelChange)="selectedAgent.set($event)">
-          <option value="all">Đại lý: Tất cả</option>
-          <option *ngFor="let a of agents()" [value]="a._id">{{ a.name }}</option>
-        </select>
-        <select class="select" [ngModel]="selectedAdGroup()" (ngModelChange)="selectedAdGroup.set($event)">
-          <option value="all">ID Nhóm QC: Tất cả</option>
-          <option *ngFor="let g of adGroups()" [value]="g._id">{{ g._id }}</option>
-        </select>
-      </div>
+    <div class="stats">
+      <span class="badge">Tổng: {{ stats().total }}</span>
+      <span class="badge info">Đang hiển thị: {{ stats().filtered }}</span>
+      <span class="badge success">Kích hoạt: {{ stats().active }}</span>
+    </div>
+  </div>
 
-      <!-- Hàng 2: Trạng thái, ngày tháng và nút tìm kiếm -->
-      <div class="filter-row">
-        <select class="select status-select" [ngModel]="selectedProductionStatus()" (ngModelChange)="selectedProductionStatus.set($event)">
-          <option value="all">TT Sản xuất: Tất cả</option>
-          <option *ngFor="let s of productionStatuses()" [value]="s" 
-                  [ngStyle]="getStatusOptionStyle('prod', s)">{{ s }}</option>
-        </select>
-        <select class="select status-select" [ngModel]="selectedOrderStatus()" (ngModelChange)="selectedOrderStatus.set($event)">
-          <option value="all">TT Vận đơn: Tất cả</option>
-          <option *ngFor="let s of orderStatuses()" [value]="s"
-                  [ngStyle]="getStatusOptionStyle('del', s)">{{ s }}</option>
-        </select>
-        <select class="select" [ngModel]="selectedActive()" (ngModelChange)="selectedActive.set($event)">
-          <option value="all">Trạng thái: Tất cả</option>
-          <option value="true">Đang hoạt động</option>
-          <option value="false">Ngừng</option>
-        </select>
-        <input class="input date-input" type="date" [ngModel]="from()" (ngModelChange)="from.set($event)" title="Từ ngày" />
-        <input class="input date-input" type="date" [ngModel]="to()" (ngModelChange)="to.set($event)" title="Đến ngày" />
-        <button class="btn btn-search" (click)="refresh()">🔍 Tìm kiếm</button>
-      </div>
+  <div class="filters-grid">
+    <input class="input" type="text" placeholder="Tìm KH/SĐT/mã vận đơn" [ngModel]="q()" (ngModelChange)="q.set($event)" />
+    <select class="select" [ngModel]="selectedProduct()" (ngModelChange)="selectedProduct.set($event)">
+      <option value="all">Sản phẩm: Tất cả</option>
+      <option *ngFor="let p of products()" [value]="p._id">{{ p.name }}</option>
+    </select>
+    <select class="select" [ngModel]="selectedAgent()" (ngModelChange)="selectedAgent.set($event)">
+      <option value="all">Đại lý: Tất cả</option>
+      <option *ngFor="let a of agents()" [value]="a._id">{{ a.name }}</option>
+    </select>
+    <select class="select" [ngModel]="selectedAdGroup()" (ngModelChange)="selectedAdGroup.set($event)">
+      <option value="all">ID Nhóm QC: Tất cả</option>
+      <option *ngFor="let g of adGroups()" [value]="g._id">{{ g._id }}</option>
+    </select>
+
+    <select class="select status-select" [ngModel]="selectedProductionStatus()" (ngModelChange)="selectedProductionStatus.set($event)">
+      <option value="all">TT Sản xuất: Tất cả</option>
+      <option *ngFor="let s of productionStatuses()" [value]="s" [ngStyle]="getStatusOptionStyle('prod', s)">{{ s }}</option>
+    </select>
+    <select class="select status-select" [ngModel]="selectedOrderStatus()" (ngModelChange)="selectedOrderStatus.set($event)">
+      <option value="all">TT Vận đơn: Tất cả</option>
+      <option *ngFor="let s of orderStatuses()" [value]="s" [ngStyle]="getStatusOptionStyle('del', s)">{{ s }}</option>
+    </select>
+    <select class="select" [ngModel]="selectedActive()" (ngModelChange)="selectedActive.set($event)">
+      <option value="all">Trạng thái: Tất cả</option>
+      <option value="true">Đang hoạt động</option>
+      <option value="false">Ngừng</option>
+    </select>
+    <input class="input date-input" type="date" [ngModel]="from()" (ngModelChange)="from.set($event)" title="Từ ngày" />
+    <input class="input date-input" type="date" [ngModel]="to()" (ngModelChange)="to.set($event)" title="Đến ngày" />
+    <div class="filter-actions">
+      <button class="btn btn-outline" (click)="resetFilters()">↺ Đặt lại</button>
+      <button class="btn btn-search" (click)="refresh()">🔍 Tìm kiếm</button>
     </div>
   </div>
 
@@ -72,7 +74,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let o of filtered()">
+        <tr *ngFor="let o of filtered(); trackBy: trackById">
           <td class="muted col-date sticky-col">{{ formatDate(o.createdAt) }}</td>
           <td class="col-customer sticky-col-2"><input type="text" [ngModel]="o.customerName" (blur)="onInputUpdate(o, 'customerName', $event)" /></td>
           <td class="col-product">
@@ -122,4 +124,103 @@
   <ng-template #loadingTpl>
     <div class="loading">Đang tải...</div>
   </ng-template>
+
+  <!-- Upload Modal -->
+  <div *ngIf="isUploadModalOpen()" class="modal-overlay" (click)="closeUploadModal()">
+    <div class="modal upload-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>📤 Tải lên và Cập nhật Đơn hàng</h3>
+        <button class="modal-close" (click)="closeUploadModal()">✕</button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="upload-section">
+          <h4>1. Tải Template mẫu</h4>
+          <button class="btn btn-secondary" (click)="downloadTemplate()">
+            📥 Tải template CSV
+          </button>
+          <p class="help-text">
+            Tải file template để có định dạng đúng. Điền thông tin cần cập nhật và giữ nguyên _id để cập nhật bản ghi hiện có.
+          </p>
+        </div>
+
+        <div class="upload-section">
+          <h4>2. Chọn file để tải lên</h4>
+          <div class="file-drop-zone" 
+               (drop)="onFileDrop($event)" 
+               (dragover)="onDragOver($event)"
+               [class.has-file]="uploadFile()">
+            <div *ngIf="!uploadFile(); else fileSelectedTpl" class="drop-message">
+              <div class="drop-icon">📁</div>
+              <p>Kéo thả file vào đây hoặc</p>
+              <input type="file" #fileInput (change)="onFileSelected($event)" 
+                     accept=".csv,.xls,.xlsx" style="display: none;">
+              <button class="btn btn-outline" (click)="fileInput.click()">>
+                Chọn file
+              </button>
+              <p class="file-types">Hỗ trợ: CSV, Excel (.xls, .xlsx) - Tối đa 10MB</p>
+            </div>
+            
+            <ng-template #fileSelectedTpl>
+              <div class="file-selected">
+                <div class="file-icon">📄</div>
+                <div class="file-info">
+                  <strong>{{ uploadFile()?.name }}</strong>
+                  <p>{{ (uploadFile()?.size || 0) / 1024 / 1024 | number:'1.2-2' }} MB</p>
+                </div>
+                <button class="btn btn-sm btn-danger" (click)="uploadFile.set(null)">
+                  ✕ Xóa
+                </button>
+              </div>
+            </ng-template>
+          </div>
+        </div>
+
+        <div *ngIf="uploadResults()" class="upload-results">
+          <h4>📊 Kết quả xử lý</h4>
+          <div class="results-summary">
+            <div class="result-item success">
+              <strong>✅ Thành công: {{ uploadResults()?.success || 0 }}</strong>
+            </div>
+            @if (uploadResults() && uploadResults()!.errors && uploadResults()!.errors.length > 0) {
+              <div class="result-item error">
+                <strong>❌ Lỗi: {{ uploadResults()!.errors.length }}</strong>
+              </div>
+            }
+          </div>
+          
+          @if (uploadResults() && uploadResults()!.errors && uploadResults()!.errors.length > 0) {
+            <div class="error-details">
+              <h5>Chi tiết lỗi:</h5>
+              <div class="error-list">
+                @for (err of uploadResults()!.errors; track err.row) {
+                  <div class="error-row">
+                    <strong>Dòng {{ err.row }}:</strong> {{ err.error }}
+                  </div>
+                }
+              </div>
+            </div>
+          }
+          
+          <p class="results-message">{{ uploadResults()?.message || '' }}</p>
+        </div>
+
+        <div *ngIf="error()" class="error-message">
+          ❌ {{ error() }}
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeUploadModal()">
+          Hủy
+        </button>
+        <button class="btn btn-primary" 
+                [disabled]="!uploadFile() || isUploading()"
+                (click)="uploadImportFile()">
+          <span *ngIf="isUploading()">🔄 Đang xử lý...</span>
+          <span *ngIf="!isUploading()">📤 Tải lên và Cập nhật</span>
+        </button>
+      </div>
+    </div>
+  </div>
 </div>

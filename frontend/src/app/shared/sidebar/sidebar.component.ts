@@ -69,7 +69,7 @@ export class SidebarComponent {
       label: 'Chi Phí',
       route: '/costs',
       children: [
-        { icon: '🧑‍🏭', label: 'Chi Phí Nhân Công 1', route: '/labor1' },
+  { icon: '🧑‍🏭', label: 'Chi Phí Nhân Công 1', route: '/costs/labor1' },
         { icon: '🛒', label: 'Chi Phí Nhập Hàng', route: '/costs/purchase' },
         { icon: '💸', label: 'Chi Phí Khác', route: '/costs/other' }
       ]
@@ -151,7 +151,10 @@ export class SidebarComponent {
       '/costs/advertising2': 'advertising-costs',
       '/ad-groups': 'ad-groups',
       '/ad-group-counts': 'ad-groups',
-      '/labor1': 'labor-costs',
+  // Sử dụng đường dẫn đầy đủ dưới nhóm /costs cho labor1
+  '/costs/labor1': 'labor-costs',
+  // Giữ ánh xạ cũ để tránh lỗi nếu còn nơi nào dùng route cũ
+  '/labor1': 'labor-costs',
   '/costs/purchase': 'purchase-costs',
       '/costs/other': 'other-costs',
   '/costs/salary': 'salary-config',

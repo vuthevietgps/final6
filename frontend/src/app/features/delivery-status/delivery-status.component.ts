@@ -145,7 +145,7 @@ export class DeliveryStatusComponent implements OnInit {
   addNew(): void {
     const data: CreateDeliveryStatusDto = {
       name: 'Trạng thái mới',
-      description: '',
+  description: 'Mô tả trạng thái mới',
       color: '#3498db',
       icon: '🚚',
       isActive: true,

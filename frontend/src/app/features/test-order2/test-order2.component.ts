@@ -30,6 +30,16 @@ export class TestOrder2Component implements OnInit, AfterViewInit {
   isLoading = signal(false);
   error = signal<string | null>(null);
 
+  // Upload functionality
+  isUploadModalOpen = signal(false);
+  uploadFile = signal<File | null>(null);
+  isUploading = signal(false);
+  uploadResults = signal<{
+    success: number;
+    errors: Array<{ row: number; error: string; data?: any }>;
+    message: string;
+  } | null>(null);
+
   // Refs for measuring sticky offsets
   @ViewChild('dateHeader', { static: false }) dateHeader?: ElementRef<HTMLElement>;
   @ViewChild('tableEl', { static: false }) tableEl?: ElementRef<HTMLElement>;
@@ -44,6 +54,14 @@ export class TestOrder2Component implements OnInit, AfterViewInit {
   to = signal('');
   selectedProductionStatus = signal('all');
   selectedOrderStatus = signal('all');
+
+  // Quick stats for header badges
+  stats = computed(() => {
+    const all = this.orders();
+    const filtered = this.filtered();
+    const active = filtered.filter(o => !!o.isActive).length;
+    return { total: all.length, filtered: filtered.length, active };
+  });
 
   filtered = computed(() => {
     let data = this.orders();
@@ -238,6 +256,23 @@ export class TestOrder2Component implements OnInit, AfterViewInit {
     });
   }
 
+  // TrackBy to render long lists smoother
+  trackById(index: number, o: TestOrder2): string { return o._id; }
+
+  // Reset all filters to default
+  resetFilters(): void {
+    this.q.set('');
+    this.selectedProduct.set('all');
+    this.selectedAgent.set('all');
+    this.selectedAdGroup.set('all');
+    this.selectedActive.set('all');
+    this.from.set('');
+    this.to.set('');
+    this.selectedProductionStatus.set('all');
+    this.selectedOrderStatus.set('all');
+    this.refresh();
+  }
+
   // Helper to extract id from string or populated object
   getId(val: any): string {
     if (!val) return '';
@@ -378,6 +413,126 @@ export class TestOrder2Component implements OnInit, AfterViewInit {
     if (!bg) return {};
     const fg = this.getContrastTextColor(bg);
     return { 'background-color': bg, color: fg, 'border-color': bg };
+  }
+
+  // Upload file methods
+  openUploadModal(): void {
+    this.isUploadModalOpen.set(true);
+    this.uploadFile.set(null);
+    this.uploadResults.set(null);
+  }
+
+  closeUploadModal(): void {
+    this.isUploadModalOpen.set(false);
+    this.uploadFile.set(null);
+    this.uploadResults.set(null);
+  }
+
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      const file = input.files[0];
+      
+      // Validate file type
+      const allowedTypes = [
+        'text/csv',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      ];
+      
+      if (!allowedTypes.includes(file.type)) {
+        this.error.set('Chỉ hỗ trợ file CSV và Excel (.xls, .xlsx)');
+        return;
+      }
+
+      // Validate file size (10MB max)
+      if (file.size > 10 * 1024 * 1024) {
+        this.error.set('File không được vượt quá 10MB');
+        return;
+      }
+
+      this.uploadFile.set(file);
+      this.error.set(null);
+    }
+  }
+
+  onFileDrop(event: DragEvent): void {
+    event.preventDefault();
+    
+    if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
+      const file = event.dataTransfer.files[0];
+      
+      // Create a mock event for reuse of validation logic
+      const mockEvent = {
+        target: { files: [file] }
+      } as unknown as Event;
+      
+      this.onFileSelected(mockEvent);
+    }
+  }
+
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+  }
+
+  uploadImportFile(): void {
+    const file = this.uploadFile();
+    if (!file) {
+      this.error.set('Vui lòng chọn file để tải lên');
+      return;
+    }
+
+    this.isUploading.set(true);
+    this.error.set(null);
+
+    this.service.importFromFile(file).subscribe({
+      next: (result) => {
+        this.uploadResults.set(result);
+        this.isUploading.set(false);
+        
+        // Refresh data if there were successful imports
+        if (result.success > 0) {
+          this.refresh();
+        }
+      },
+      error: (err) => {
+        this.error.set(err.error?.message || 'Lỗi khi tải lên file');
+        this.isUploading.set(false);
+      }
+    });
+  }
+
+  downloadTemplate(): void {
+    this.service.getTemplate().subscribe({
+      next: (template) => {
+        // Create CSV content
+        const headers = template.headers.join(',');
+        const sampleRow = template.sampleData[0];
+        const values = template.headers.map(header => {
+          const value = sampleRow[header];
+          if (typeof value === 'string' && value.includes(',')) {
+            return `"${value}"`;
+          }
+          return value;
+        }).join(',');
+        
+        const csvContent = headers + '\n' + values;
+        
+        // Download CSV file
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'test-order2-template.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      },
+      error: (err) => {
+        this.error.set(err.error?.message || 'Lỗi khi tải template');
+      }
+    });
   }
 
   getStatusOptionStyle(kind: 'prod' | 'del', name?: string): Record<string, string> {

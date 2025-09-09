@@ -14,6 +14,7 @@
 
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
+import { MulterModule } from '@nestjs/platform-express';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
@@ -45,6 +46,15 @@ import { SessionLogModule } from './session-log/session-log.module';
   imports: [
   // Bật scheduler để dùng cron job
   ScheduleModule.forRoot(),
+  
+  // Cấu hình multer cho upload file
+  MulterModule.register({
+    dest: './uploads',
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10MB
+    },
+  }),
+  
   // Kết nối MongoDB Atlas với connection string chứa credentials và UTF-8 config
   MongooseModule.forRoot('mongodb+srv://dinhvigps07:zn0dOrNeZH2yx2yO@smarterp-dev.khsfdta.mongodb.net/management-system', {
       connectionFactory: (connection) => {
