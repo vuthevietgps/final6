@@ -86,7 +86,10 @@ export class AdGroupComponent implements OnInit {
 
   load(): void {
     this.adGroupService.getAll().subscribe({
-      next: (list) => { this.adGroups.set(list); this.isLoading.set(false); },
+      next: (list) => {
+        this.adGroups.set(list.map(l => this.normalizeAdGroup(l as any)));
+        this.isLoading.set(false);
+      },
       error: (e) => { this.error.set(e?.message || 'Lỗi tải dữ liệu'); this.isLoading.set(false); }
     });
   }
@@ -145,23 +148,63 @@ export class AdGroupComponent implements OnInit {
     const patch: Partial<AdGroup> = { [field]: value } as any;
     this.adGroupService.update(group._id!, patch).subscribe({
       next: (updated) => {
-        this.adGroups.update(list => list.map(i => i._id === updated._id ? updated : i));
+        const norm = this.normalizeAdGroup(updated as any);
+        this.adGroups.update(list => list.map(i => i._id === norm._id ? norm : i));
       },
       error: (e) => { this.error.set('Lỗi cập nhật: ' + (e?.message || e)); }
     });
   }
 
-  getUserName(id: string): string {
+  private normalizeAdGroup(raw: any): AdGroup {
+    // Accept either string ids or populated objects and normalize to strings + names
+    const prod = raw.productId;
+    const agent = raw.agentId;
+    const acc = raw.adAccountId;
+    const productId = typeof prod === 'string' ? prod : prod?._id || '';
+    const agentId = typeof agent === 'string' ? agent : agent?._id || '';
+    const adAccountId = typeof acc === 'string' ? acc : acc?._id || '';
+    const productName = typeof prod === 'object' ? (prod?.name || undefined) : undefined;
+    const agentName = typeof agent === 'object' ? (agent?.fullName || agent?.name || undefined) : undefined;
+    const adAccountName = typeof acc === 'object' ? (acc?.name || undefined) : undefined;
+    const adAccountAccountId = typeof acc === 'object' ? (acc?.accountId || undefined) : undefined;
+    return {
+      ...raw,
+      productId,
+      agentId,
+      adAccountId,
+      productName,
+      agentName,
+      adAccountName,
+      adAccountAccountId,
+    } as AdGroup;
+  }
+
+  getUserName(idOrObj: any): string {
+    // If populated object passed accidentally, use its name
+    if (idOrObj && typeof idOrObj === 'object') {
+      return idOrObj.fullName || idOrObj.name || '';
+    }
+    const id = String(idOrObj || '');
     const u = this.users().find(x => x._id === id);
     return u ? (u as any).fullName || (u as any).name || id : id;
   }
 
-  getProductName(id: string): string {
+  getProductName(idOrObj: any): string {
+    if (idOrObj && typeof idOrObj === 'object') {
+      return idOrObj.name || '';
+    }
+    const id = String(idOrObj || '');
     const p = this.products().find(x => x._id === id);
     return p?.name || id;
   }
 
-  getAdAccountName(id: string): string {
+  getAdAccountName(idOrObj: any): string {
+    if (idOrObj && typeof idOrObj === 'object') {
+      const nm = idOrObj.name || '';
+      const accId = idOrObj.accountId || '';
+      return nm && accId ? `${nm} (${accId})` : (nm || accId || '');
+    }
+    const id = String(idOrObj || '');
     const acc = this.adAccounts().find(x => x._id === id);
     return acc ? `${acc.name} (${acc.accountId})` : id;
   }
@@ -185,7 +228,7 @@ export class AdGroupComponent implements OnInit {
     };
     
     this.adGroupService.search(filters).subscribe({
-      next: (list) => this.adGroups.set(list),
+      next: (list) => this.adGroups.set(list.map(l => this.normalizeAdGroup(l as any))),
       error: (e) => this.error.set(e?.message || 'Lỗi tìm kiếm')
     });
   }

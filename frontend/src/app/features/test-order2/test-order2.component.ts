@@ -1,13 +1,13 @@
-import { Component, OnInit, AfterViewInit, computed, signal, ElementRef, ViewChild, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { AfterViewInit, Component, computed, ElementRef, HostListener, OnInit, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { TestOrder2Service } from './test-order2.service';
-import { CreateTestOrder2, NamedItem, TestOrder2 } from './models';
-import { ProductService } from '../product/product.service';
-import { UserService } from '../user/user.service';
 import { AdGroupService } from '../ad-group/ad-group.service';
-import { ProductionStatusService } from '../production-status/production-status.service';
 import { DeliveryStatusService } from '../delivery-status/delivery-status.service';
+import { ProductService } from '../product/product.service';
+import { ProductionStatusService } from '../production-status/production-status.service';
+import { UserService } from '../user/user.service';
+import { CreateTestOrder2, NamedItem, TestOrder2 } from './models';
+import { TestOrder2Service } from './test-order2.service';
 
 @Component({
   selector: 'app-test-order2',
@@ -92,8 +92,8 @@ export class TestOrder2Component implements OnInit, AfterViewInit {
     private userService: UserService,
     private adGroupService: AdGroupService,
     private productionStatusService: ProductionStatusService,
-  private deliveryStatusService: DeliveryStatusService,
-  ) {}
+    private deliveryStatusService: DeliveryStatusService,
+  ) { }
 
   ngOnInit(): void {
     this.loadAll();
@@ -131,9 +131,9 @@ export class TestOrder2Component implements OnInit, AfterViewInit {
       adGroupId: this.selectedAdGroup() !== 'all' ? this.selectedAdGroup() : undefined,
       isActive: this.selectedActive() !== 'all' ? this.selectedActive() : undefined,
       from: this.from() || undefined,
-  to: this.to() || undefined,
-  productionStatus: this.selectedProductionStatus() !== 'all' ? this.selectedProductionStatus() : undefined,
-  orderStatus: this.selectedOrderStatus() !== 'all' ? this.selectedOrderStatus() : undefined,
+      to: this.to() || undefined,
+      productionStatus: this.selectedProductionStatus() !== 'all' ? this.selectedProductionStatus() : undefined,
+      orderStatus: this.selectedOrderStatus() !== 'all' ? this.selectedOrderStatus() : undefined,
     }).subscribe({
       next: (rows) => {
         // Ensure defaults for missing statuses
@@ -233,7 +233,10 @@ export class TestOrder2Component implements OnInit, AfterViewInit {
 
   onSelectUpdate(order: TestOrder2, field: keyof TestOrder2, event: Event): void {
     const target = event.target as HTMLSelectElement;
-    this.onBlurUpdate(order, field, target.value);
+  let value = (target.value ?? '').toString().trim();
+  // Chuẩn hóa adGroupId: nếu rỗng thì đặt về '0'
+  if (field === 'adGroupId' && !value) value = '0';
+  this.onBlurUpdate(order, field, value);
   }
 
   onInputUpdate(order: TestOrder2, field: keyof TestOrder2, event: Event): void {
@@ -292,7 +295,7 @@ export class TestOrder2Component implements OnInit, AfterViewInit {
 
   downloadCSV(): void {
     const data = this.filtered(); // Sử dụng dữ liệu đã được lọc
-    
+
     if (data.length === 0) {
       alert('Không có dữ liệu để tải xuống');
       return;
@@ -301,7 +304,7 @@ export class TestOrder2Component implements OnInit, AfterViewInit {
     // Định nghĩa headers CSV
     const headers = [
       'Ngày',
-      'Khách hàng', 
+      'Khách hàng',
       'Sản phẩm',
       'Số lượng',
       'Đại lý',
@@ -347,12 +350,12 @@ export class TestOrder2Component implements OnInit, AfterViewInit {
     const csvContent = csvRows.join('\n');
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
-    
+
     const link = document.createElement('a');
     link.href = url;
     link.download = `don-hang-thu-nghiem-2-${new Date().toISOString().split('T')[0]}.csv`;
     link.style.display = 'none';
-    
+
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -432,14 +435,14 @@ export class TestOrder2Component implements OnInit, AfterViewInit {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
       const file = input.files[0];
-      
+
       // Validate file type
       const allowedTypes = [
         'text/csv',
         'application/vnd.ms-excel',
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       ];
-      
+
       if (!allowedTypes.includes(file.type)) {
         this.error.set('Chỉ hỗ trợ file CSV và Excel (.xls, .xlsx)');
         return;
@@ -458,15 +461,15 @@ export class TestOrder2Component implements OnInit, AfterViewInit {
 
   onFileDrop(event: DragEvent): void {
     event.preventDefault();
-    
+
     if (event.dataTransfer?.files && event.dataTransfer.files.length > 0) {
       const file = event.dataTransfer.files[0];
-      
+
       // Create a mock event for reuse of validation logic
       const mockEvent = {
         target: { files: [file] }
       } as unknown as Event;
-      
+
       this.onFileSelected(mockEvent);
     }
   }
@@ -489,7 +492,7 @@ export class TestOrder2Component implements OnInit, AfterViewInit {
       next: (result) => {
         this.uploadResults.set(result);
         this.isUploading.set(false);
-        
+
         // Refresh data if there were successful imports
         if (result.success > 0) {
           this.refresh();
@@ -515,9 +518,9 @@ export class TestOrder2Component implements OnInit, AfterViewInit {
           }
           return value;
         }).join(',');
-        
+
         const csvContent = headers + '\n' + values;
-        
+
         // Download CSV file
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');

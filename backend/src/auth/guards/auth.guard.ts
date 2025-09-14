@@ -46,7 +46,7 @@ export class RolesGuard implements CanActivate {
   'labor-costs', 'other-costs', 'salary-config',
   // Newly explicit permissions
   'customers', 'purchase-costs',
-  'quotes', 'reports', 'export', 'import', 'settings'
+  'quotes', 'reports', 'export', 'import', 'settings', 'admin'
       ],
       'manager': [
         // Orders

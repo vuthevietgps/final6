@@ -40,7 +40,7 @@ export class AdGroupService {
     if (query?.isActive !== undefined) filter.isActive = query.isActive === 'true';
     return this.adGroupModel.find(filter)
       .populate('productId', 'name')
-      .populate('agentId', 'name')
+      .populate('agentId', 'fullName name')
       .populate('adAccountId', 'name accountId')
       .sort({ createdAt: -1 })
       .exec();
@@ -64,7 +64,7 @@ export class AdGroupService {
 
     return this.adGroupModel.find(filter)
       .populate('productId', 'name')
-      .populate('agentId', 'name')
+      .populate('agentId', 'fullName name')
       .populate('adAccountId', 'name accountId')
       .sort({ createdAt: -1 })
       .exec();
@@ -78,7 +78,7 @@ export class AdGroupService {
   async findOne(id: string): Promise<AdGroup> {
     const doc = await this.adGroupModel.findById(id)
       .populate('productId', 'name')
-      .populate('agentId', 'name')
+      .populate('agentId', 'fullName name')
       .populate('adAccountId', 'name accountId')
       .exec();
     if (!doc) throw new NotFoundException('Không tìm thấy nhóm quảng cáo');
@@ -88,7 +88,7 @@ export class AdGroupService {
   async update(id: string, dto: UpdateAdGroupDto): Promise<AdGroup> {
     const updated = await this.adGroupModel.findByIdAndUpdate(id, dto, { new: true })
       .populate('productId', 'name')
-      .populate('agentId', 'name')
+      .populate('agentId', 'fullName name')
       .populate('adAccountId', 'name accountId')
       .exec();
     if (!updated) throw new NotFoundException('Không tìm thấy nhóm quảng cáo');

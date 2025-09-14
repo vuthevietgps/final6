@@ -2,23 +2,27 @@
  * File: test-order2/test-order2.service.ts
  * Mục đích: Nghiệp vụ Đơn Hàng Thử Nghiệm 2 (CRUD, lọc, cập nhật inline).
  */
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { TestOrder2, TestOrder2Document } from './schemas/test-order2.schema';
-import { CreateTestOrder2Dto } from './dto/create-test-order2.dto';
-import { GoogleSyncService } from '../google-sync/google-sync.service';
-import { UpdateTestOrder2Dto } from './dto/update-test-order2.dto';
 import * as csv from 'csv-parser';
-import * as XLSX from 'xlsx';
+import { Model, Types } from 'mongoose';
 import { Readable } from 'stream';
+import * as XLSX from 'xlsx';
+import { GoogleSyncService } from '../google-sync/google-sync.service';
+import { Summary5Service } from '../summary5/summary5.service';
+import { Summary4Service } from '../summary4/summary4.service';
+import { CreateTestOrder2Dto } from './dto/create-test-order2.dto';
+import { UpdateTestOrder2Dto } from './dto/update-test-order2.dto';
+import { TestOrder2, TestOrder2Document } from './schemas/test-order2.schema';
 
 @Injectable()
 export class TestOrder2Service {
   constructor(
     @InjectModel(TestOrder2.name) private readonly model: Model<TestOrder2Document>,
     private readonly googleSync: GoogleSyncService,
-  ) {}
+    private readonly summary4Sync: Summary4Service, // Inject Summary4Service
+    private readonly summary5Service: Summary5Service, // Inject Summary5Service
+  ) { }
 
   async create(dto: CreateTestOrder2Dto): Promise<TestOrder2> {
     const payload: Partial<TestOrder2> = {
@@ -40,6 +44,22 @@ export class TestOrder2Service {
       receiverAddress: dto.receiverAddress?.trim() || undefined,
     };
     const saved = await new this.model(payload).save();
+    
+    // Trigger sync Summary4 sau khi tạo đơn
+    this.summary4Sync.syncFromTestOrder2().catch(err => {
+      console.error('Failed to sync Summary4 after create:', err);
+    });
+
+    // Trigger sync Summary5 (ngày của đơn)
+    try {
+      const d = new Date(saved.createdAt);
+      const startDate = new Date(d); startDate.setHours(0,0,0,0);
+      const endDate = new Date(d); endDate.setHours(23,59,59,999);
+      await this.summary5Service.sync({ startDate: startDate.toISOString(), endDate: endDate.toISOString() });
+    } catch (e) {
+      console.warn('Failed to sync Summary5 after create:', e?.message || e);
+    }
+    
     // Trigger sync theo đại lý sau khi tạo đơn
     const agentId = String(saved.agentId);
     if (agentId) {
@@ -83,27 +103,43 @@ export class TestOrder2Service {
   }
 
   async update(id: string, dto: UpdateTestOrder2Dto): Promise<TestOrder2> {
-  const update: any = {};
-  if (dto.productId !== undefined) update.productId = new Types.ObjectId(dto.productId);
-  if (dto.agentId !== undefined) update.agentId = new Types.ObjectId(dto.agentId);
-  if (dto.customerName !== undefined) update.customerName = dto.customerName?.trim();
-  if (dto.adGroupId !== undefined) update.adGroupId = dto.adGroupId?.trim();
-  if (dto.isActive !== undefined) update.isActive = dto.isActive;
-  if (dto.quantity !== undefined) update.quantity = dto.quantity;
-  if (dto.serviceDetails !== undefined) update.serviceDetails = dto.serviceDetails?.trim();
-  if (dto.productionStatus !== undefined) update.productionStatus = dto.productionStatus;
-  if (dto.orderStatus !== undefined) update.orderStatus = dto.orderStatus;
-  if (dto.submitLink !== undefined) update.submitLink = dto.submitLink?.trim();
-  if (dto.trackingNumber !== undefined) update.trackingNumber = dto.trackingNumber?.trim();
-  if (dto.depositAmount !== undefined) update.depositAmount = dto.depositAmount;
-  if (dto.codAmount !== undefined) update.codAmount = dto.codAmount;
-  if (dto.manualPayment !== undefined) update.manualPayment = dto.manualPayment;
-  if (dto.receiverName !== undefined) update.receiverName = dto.receiverName?.trim();
-  if (dto.receiverPhone !== undefined) update.receiverPhone = dto.receiverPhone?.trim();
-  if (dto.receiverAddress !== undefined) update.receiverAddress = dto.receiverAddress?.trim();
+    const update: any = {};
+    if (dto.productId !== undefined) update.productId = new Types.ObjectId(dto.productId);
+    if (dto.agentId !== undefined) update.agentId = new Types.ObjectId(dto.agentId);
+    if (dto.customerName !== undefined) update.customerName = dto.customerName?.trim();
+  if (dto.adGroupId !== undefined) update.adGroupId = (dto.adGroupId?.trim() || '0');
+    if (dto.isActive !== undefined) update.isActive = dto.isActive;
+    if (dto.quantity !== undefined) update.quantity = dto.quantity;
+    if (dto.serviceDetails !== undefined) update.serviceDetails = dto.serviceDetails?.trim();
+    if (dto.productionStatus !== undefined) update.productionStatus = dto.productionStatus;
+    if (dto.orderStatus !== undefined) update.orderStatus = dto.orderStatus;
+    if (dto.submitLink !== undefined) update.submitLink = dto.submitLink?.trim();
+    if (dto.trackingNumber !== undefined) update.trackingNumber = dto.trackingNumber?.trim();
+    if (dto.depositAmount !== undefined) update.depositAmount = dto.depositAmount;
+    if (dto.codAmount !== undefined) update.codAmount = dto.codAmount;
+    if (dto.manualPayment !== undefined) update.manualPayment = dto.manualPayment;
+    if (dto.receiverName !== undefined) update.receiverName = dto.receiverName?.trim();
+    if (dto.receiverPhone !== undefined) update.receiverPhone = dto.receiverPhone?.trim();
+    if (dto.receiverAddress !== undefined) update.receiverAddress = dto.receiverAddress?.trim();
 
     const doc = await this.model.findByIdAndUpdate(id, update, { new: true }).exec();
     if (!doc) throw new NotFoundException('Không tìm thấy đơn hàng để cập nhật');
+    
+    // Trigger sync Summary4 sau khi update đơn
+    this.summary4Sync.syncFromTestOrder2().catch(err => {
+      console.error('Failed to sync Summary4 after update:', err);
+    });
+
+    // Trigger sync Summary5 (ngày của đơn)
+    try {
+      const d = new Date(doc.createdAt);
+      const startDate = new Date(d); startDate.setHours(0,0,0,0);
+      const endDate = new Date(d); endDate.setHours(23,59,59,999);
+      await this.summary5Service.sync({ startDate: startDate.toISOString(), endDate: endDate.toISOString() });
+    } catch (e) {
+      console.warn('Failed to sync Summary5 after update:', e?.message || e);
+    }
+    
     // Trigger sync theo đại lý của đơn hàng này
     const agentId = String(doc.agentId);
     if (agentId) {
@@ -115,6 +151,22 @@ export class TestOrder2Service {
   async remove(id: string): Promise<{ message: string }> {
     const doc = await this.model.findByIdAndDelete(id).exec();
     if (!doc) throw new NotFoundException('Không tìm thấy đơn hàng để xóa');
+    
+    // Trigger sync Summary4 sau khi xóa đơn
+    this.summary4Sync.syncFromTestOrder2().catch(err => {
+      console.error('Failed to sync Summary4 after delete:', err);
+    });
+
+    // Trigger sync Summary5 (ngày của đơn)
+    try {
+      const d = new Date(doc.createdAt);
+      const startDate = new Date(d); startDate.setHours(0,0,0,0);
+      const endDate = new Date(d); endDate.setHours(23,59,59,999);
+      await this.summary5Service.sync({ startDate: startDate.toISOString(), endDate: endDate.toISOString() });
+    } catch (e) {
+      console.warn('Failed to sync Summary5 after delete:', e?.message || e);
+    }
+    
     // Trigger sync theo đại lý sau khi xóa đơn
     const agentId = String(doc.agentId);
     if (agentId) {
@@ -123,8 +175,8 @@ export class TestOrder2Service {
     return { message: 'Đã xóa đơn hàng' };
   }
 
-  async importFromFile(file: Express.Multer.File): Promise<{ 
-    success: number; 
+  async importFromFile(file: Express.Multer.File): Promise<{
+    success: number;
     errors: Array<{ row: number; error: string; data?: any }>;
     message: string;
   }> {
@@ -166,7 +218,7 @@ export class TestOrder2Service {
     }
   }
 
-  async exportTemplate(): Promise<{ 
+  async exportTemplate(): Promise<{
     headers: string[];
     sampleData: any[];
     instructions: string[];
@@ -177,7 +229,7 @@ export class TestOrder2Service {
         'productId',
         'customerName',
         'quantity',
-        'agentId', 
+        'agentId',
         'adGroupId',
         'isActive',
         'serviceDetails',
@@ -229,7 +281,7 @@ export class TestOrder2Service {
     return new Promise((resolve, reject) => {
       const results: any[] = [];
       const stream = Readable.from(buffer.toString());
-      
+
       stream
         .pipe(csv())
         .on('data', (data) => results.push(data))
@@ -264,7 +316,7 @@ export class TestOrder2Service {
 
   private async updateFromImport(id: string, record: any): Promise<void> {
     const updateData: any = {};
-    
+
     if (record.productId) updateData.productId = new Types.ObjectId(record.productId);
     if (record.customerName) updateData.customerName = record.customerName.toString().trim();
     if (record.quantity !== undefined) updateData.quantity = parseInt(record.quantity);
@@ -288,10 +340,23 @@ export class TestOrder2Service {
       throw new Error(`Không tìm thấy đơn hàng với ID: ${id}`);
     }
 
-    // Trigger sync
+    // Trigger sync Google Sheet
     const agentId = String(doc.agentId);
     if (agentId) {
       this.googleSync.scheduleAgentSync(agentId);
+    }
+
+    // Trigger sync Summary4 and Summary5 for the day
+    this.summary4Sync.syncFromTestOrder2().catch(err => {
+      console.error('Failed to sync Summary4 after import update:', err);
+    });
+    try {
+      const d = new Date(doc.createdAt);
+      const startDate = new Date(d); startDate.setHours(0,0,0,0);
+      const endDate = new Date(d); endDate.setHours(23,59,59,999);
+      await this.summary5Service.sync({ startDate: startDate.toISOString(), endDate: endDate.toISOString() });
+    } catch (e) {
+      console.warn('Failed to sync Summary5 after import update:', e?.message || e);
     }
   }
 

@@ -1,20 +1,19 @@
 /**
  * File: ad-group-profit/ad-group-profit.service.ts
- * Mục đích: Tính toán báo cáo lợi nhuận theo nhóm quảng cáo theo ngày từ dữ liệu Summary2
+ * Mục đích: Tính báo cáo lợi nhuận theo nhóm quảng cáo theo ngày từ dữ liệu Summary5
  */
 import { Injectable } from '@nestjs/common';
-import { Summary2Service } from '../summary2/summary2.service';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { AdvertisingCost, AdvertisingCostDocument } from '../advertising-cost/schemas/advertising-cost.schema';
+import { Model, Types } from 'mongoose';
 import { AdGroup, AdGroupDocument } from '../ad-group/schemas/ad-group.schema';
+import { Summary5, Summary5Document } from '../summary5/schemas/summary5.schema';
 
 export interface AdGroupProfitReport {
   date: string; // Ngày tháng (YYYY-MM-DD)
   adGroupId: string; // ID nhóm quảng cáo
   adGroupName: string; // Tên nhóm quảng cáo
-  adsCost: number; // Chi phí quảng cáo theo ngày (QC2)
-  totalProfit: number; // Lợi nhuận tổng hợp (Summary2)
+  adsCost: number; // Chi phí quảng cáo theo ngày (từ Summary5.adCost)
+  totalProfit: number; // Lợi nhuận tổng hợp (từ Summary5.profit)
   orderCount: number; // Số đơn hàng
   totalQuantity: number; // Tổng số lượng
   totalRevenue: number; // Tổng doanh thu
@@ -23,10 +22,12 @@ export interface AdGroupProfitReport {
 @Injectable()
 export class AdGroupProfitService {
   constructor(
-    private readonly summary2Service: Summary2Service,
-    @InjectModel(AdvertisingCost.name) private readonly advertisingCostModel: Model<AdvertisingCostDocument>,
     @InjectModel(AdGroup.name) private readonly adGroupModel: Model<AdGroupDocument>,
+    @InjectModel(Summary5.name) private readonly s5Model: Model<Summary5Document>,
   ) {}
+
+  private startOfDay(d: Date): Date { const x = new Date(d); x.setHours(0,0,0,0); return x; }
+  private endOfDay(d: Date): Date { const x = new Date(d); x.setHours(23,59,59,999); return x; }
 
   /**
    * Lấy báo cáo lợi nhuận theo nhóm quảng cáo theo ngày
@@ -37,109 +38,69 @@ export class AdGroupProfitService {
     agentId?: string;
   }): Promise<AdGroupProfitReport[]> {
     try {
-      // Lấy dữ liệu từ Summary2
-      const summary2Data = await this.summary2Service.getSummary2(params);
-      
-      if (!summary2Data || summary2Data.length === 0) {
-        return [];
-      }
-
-  // Gom nhóm theo ngày và adGroupId từ Summary2 (lợi nhuận/doanh thu/số lượng)
-      const groupedData = new Map<string, {
-        date: string;
-        adGroupId: string;
-        adGroupName: string;
-        orders: any[];
-      }>();
-
-      for (const item of summary2Data) {
-        // Chuyển đổi ngày về định dạng YYYY-MM-DD
-        const date = new Date(item.createdAt);
-        const dateKey = date.toISOString().split('T')[0];
-        
-        const adGroupId = item.adGroupId || 'unknown';
-        const key = `${dateKey}_${adGroupId}`;
-        
-        if (!groupedData.has(key)) {
-          groupedData.set(key, {
-            date: dateKey,
-            adGroupId,
-            adGroupName: `Nhóm QC ${adGroupId}`, // Tạm thời dùng tên mặc định
-            orders: []
-          });
+      // Build match for Summary5
+  const match: any = {};
+  if (params.from) match.orderDate = { ...(match.orderDate || {}), $gte: this.startOfDay(new Date(params.from)) };
+  if (params.to) match.orderDate = { ...(match.orderDate || {}), $lte: this.endOfDay(new Date(params.to)) };
+      if (params.agentId) {
+        try {
+          match.agentId = new Types.ObjectId(params.agentId);
+        } catch {
+          match.agentId = params.agentId; // fallback if not a valid ObjectId
         }
-        
-        groupedData.get(key)!.orders.push(item);
       }
 
-      // Map tên nhóm quảng cáo thực tế
-      const adGroupIds = Array.from(new Set(Array.from(groupedData.values()).map(v => v.adGroupId)));
-      const adGroupDocs = await this.adGroupModel.find({ adGroupId: { $in: adGroupIds } }).lean();
-      const nameMap = new Map<string, string>();
-      for (const ag of adGroupDocs) nameMap.set((ag as any).adGroupId, (ag as any).name || `Nhóm QC ${(ag as any).adGroupId}`);
-
-      // Lấy chi phí quảng cáo theo ngày từ AdvertisingCost (QC2)
-      let adsMatch: any = {};
-      if (params.from) adsMatch.date = { ...(adsMatch.date || {}), $gte: new Date(params.from) };
-      if (params.to) adsMatch.date = { ...(adsMatch.date || {}), $lte: new Date(params.to) };
-      if (adGroupIds.length) adsMatch.adGroupId = { $in: adGroupIds };
-      const costAgg = await this.advertisingCostModel.aggregate([
-        { $match: adsMatch },
+      // Aggregate Summary5 by adGroupId + day
+      const agg = await this.s5Model.aggregate([
+        { $match: match },
         {
           $group: {
             _id: {
               adGroupId: '$adGroupId',
-              y: { $year: '$date' },
-              m: { $month: '$date' },
-              d: { $dayOfMonth: '$date' },
+              y: { $year: '$orderDate' },
+              m: { $month: '$orderDate' },
+              d: { $dayOfMonth: '$orderDate' },
             },
-            sumSpent: { $sum: { $ifNull: ['$spentAmount', 0] } },
+            sumProfit: { $sum: { $ifNull: ['$profit', 0] } },
+            sumRevenue: { $sum: { $ifNull: ['$revenue', 0] } },
+            sumAdCost: { $sum: { $ifNull: ['$adCost', 0] } },
+            sumQty: { $sum: { $ifNull: ['$quantity', 0] } },
+            orders: { $sum: 1 },
           },
         },
         {
           $project: {
             _id: 0,
             adGroupId: '$_id.adGroupId',
-            date: {
-              $dateToString: {
-                format: '%Y-%m-%d',
-                date: { $dateFromParts: { year: '$_id.y', month: '$_id.m', day: '$_id.d' } },
-              },
-            },
-            sumSpent: 1,
-          },
-        },
-      ]);
-      const costMap = new Map<string, Map<string, number>>();
-      for (const row of costAgg as any[]) {
-        const agid = String(row.adGroupId || '');
-        if (!agid) continue;
-        if (!costMap.has(agid)) costMap.set(agid, new Map<string, number>());
-        costMap.get(agid)!.set(row.date, Number(row.sumSpent || 0));
-      }
+            date: { $dateToString: { format: '%Y-%m-%d', date: { $dateFromParts: { year: '$_id.y', month: '$_id.m', day: '$_id.d' } } } },
+            sumProfit: 1,
+            sumRevenue: 1,
+            sumAdCost: 1,
+            sumQty: 1,
+            orders: 1,
+          }
+        }
+      ]).exec();
 
-      // Tính toán báo cáo
-      const reports: AdGroupProfitReport[] = [];
-      
-      for (const group of groupedData.values()) {
-        const totalProfit = group.orders.reduce((sum, order) => sum + (order.profit || 0), 0);
-        const totalQuantity = group.orders.reduce((sum, order) => sum + (order.quantity || 0), 0);
-        const totalRevenue = group.orders.reduce((sum, order) => sum + (order.revenue || 0), 0);
-        const orderCount = group.orders.length;
-        const name = nameMap.get(group.adGroupId) || group.adGroupName;
-        const adsCost = costMap.get(group.adGroupId)?.get(group.date) ?? 0;
+      if (!agg || !agg.length) return [];
 
-        reports.push({
-          date: group.date,
-          adGroupId: group.adGroupId,
-          adGroupName: name,
-          adsCost,
-          totalProfit: Number(totalProfit.toFixed(2)),
-          orderCount,
-          totalQuantity,
-          totalRevenue: Number(totalRevenue.toFixed(2))
-        });
-      }
+      // Map tên nhóm quảng cáo
+      const adGroupIds = Array.from(new Set(agg.map((x: any) => x.adGroupId).filter(Boolean)));
+      const adGroupDocs = await this.adGroupModel.find({ adGroupId: { $in: adGroupIds } }).lean();
+      const nameMap = new Map<string, string>();
+      for (const ag of adGroupDocs) nameMap.set((ag as any).adGroupId, (ag as any).name || `Nhóm QC ${(ag as any).adGroupId}`);
+
+      // Tạo báo cáo
+      const reports: AdGroupProfitReport[] = agg.map((row: any) => ({
+        date: row.date,
+        adGroupId: row.adGroupId || 'unknown',
+        adGroupName: nameMap.get(row.adGroupId) || `Nhóm QC ${row.adGroupId}`,
+        adsCost: Number(row.sumAdCost || 0),
+        totalProfit: Number(row.sumProfit || 0),
+        orderCount: Number(row.orders || 0),
+        totalQuantity: Number(row.sumQty || 0),
+        totalRevenue: Number(row.sumRevenue || 0),
+      }));
 
       // Sắp xếp theo ngày giảm dần, sau đó theo tên nhóm
       reports.sort((a, b) => {
@@ -170,10 +131,9 @@ export class AdGroupProfitService {
   }> {
     try {
       const reports = await this.getAdGroupProfitReport(params);
-      
-      const totalProfit = reports.reduce((sum, report) => sum + report.totalProfit, 0);
-      const totalOrders = reports.reduce((sum, report) => sum + report.orderCount, 0);
-    const uniqueAdGroups = new Set(reports.map(r => r.adGroupId || r.adGroupName)).size;
+      const totalProfit = reports.reduce((sum, r) => sum + r.totalProfit, 0);
+      const totalOrders = reports.reduce((sum, r) => sum + r.orderCount, 0);
+      const uniqueAdGroups = new Set(reports.map(r => r.adGroupId || r.adGroupName)).size;
       const avgProfitPerOrder = totalOrders > 0 ? totalProfit / totalOrders : 0;
 
       return {

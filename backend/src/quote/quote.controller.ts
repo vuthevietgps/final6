@@ -45,6 +45,11 @@ export class QuoteController {
     return this.quoteService.diagnostics();
   }
 
+  @Get('migrate-names')
+  async migrateNames() {
+    return this.quoteService.migrateProductAndAgentNames();
+  }
+
   @Get('agent/:agentId')
   findByAgent(@Param('agentId') agentId: string) {
     return this.quoteService.findByAgent(agentId);

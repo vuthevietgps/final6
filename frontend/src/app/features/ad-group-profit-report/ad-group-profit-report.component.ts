@@ -143,7 +143,8 @@ export class AdGroupProfitReportComponent implements OnInit, OnDestroy {
   /**
    * Handle period change
    */
-  onPeriodChange(): void {
+  onPeriodChange(value: PeriodOption['value']): void {
+    this.query.period = value;
     // Clear custom dates when not using custom period
     if (this.query.period !== 'custom') {
       this.query.fromDate = undefined;
@@ -155,17 +156,24 @@ export class AdGroupProfitReportComponent implements OnInit, OnDestroy {
   /**
    * Handle filter change
    */
-  onFilterChange(): void {
+  onAdGroupChange(value: string): void {
+    this.query.adGroupId = value || undefined;
     this.loadReport();
   }
 
   /**
    * Handle custom date change
    */
-  onCustomDateChange(): void {
-  if (this.query.fromDate && this.query.toDate) {
-      this.loadReport();
-    }
+  setFromDate(value: string): void {
+    this.query.fromDate = value || undefined;
+    if (this.query.period !== 'custom') this.query.period = 'custom';
+    if (this.query.fromDate && this.query.toDate) this.loadReport();
+  }
+
+  setToDate(value: string): void {
+    this.query.toDate = value || undefined;
+    if (this.query.period !== 'custom') this.query.period = 'custom';
+    if (this.query.fromDate && this.query.toDate) this.loadReport();
   }
 
   /**

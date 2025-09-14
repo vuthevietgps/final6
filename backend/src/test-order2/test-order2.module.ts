@@ -7,6 +7,8 @@ import { TestOrder2, TestOrder2Schema } from './schemas/test-order2.schema';
 import { TestOrder2Service } from './test-order2.service';
 import { GoogleSyncModule } from '../google-sync/google-sync.module';
 import { TestOrder2Controller } from './test-order2.controller';
+import { Summary4Module } from '../summary4/summary4.module';
+import { Summary5Module } from '../summary5/summary5.module';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { TestOrder2Controller } from './test-order2.controller';
       { name: TestOrder2.name, schema: TestOrder2Schema },
     ]),
     GoogleSyncModule,
+    Summary4Module, // Import Summary4Module để sử dụng Summary4SyncService
+    Summary5Module,
   ],
   providers: [TestOrder2Service],
   controllers: [TestOrder2Controller],

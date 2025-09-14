@@ -5,17 +5,15 @@
 import { Module } from '@nestjs/common';
 import { AdGroupProfitController } from './ad-group-profit.controller';
 import { AdGroupProfitService } from './ad-group-profit.service';
-import { Summary2Module } from '../summary2/summary2.module';
 import { MongooseModule } from '@nestjs/mongoose';
-import { AdvertisingCost, AdvertisingCostSchema } from '../advertising-cost/schemas/advertising-cost.schema';
 import { AdGroup, AdGroupSchema } from '../ad-group/schemas/ad-group.schema';
+import { Summary5, Summary5Schema } from '../summary5/schemas/summary5.schema';
 
 @Module({
   imports: [
-    Summary2Module, // Import Summary2Module để sử dụng Summary2Service
     MongooseModule.forFeature([
-      { name: AdvertisingCost.name, schema: AdvertisingCostSchema },
       { name: AdGroup.name, schema: AdGroupSchema },
+      { name: Summary5.name, schema: Summary5Schema },
     ])
   ],
   controllers: [AdGroupProfitController],

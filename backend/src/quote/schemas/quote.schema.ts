@@ -17,6 +17,12 @@ export class Quote {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   agentId: Types.ObjectId;
 
+  @Prop({ required: true })
+  product: string; // Tên sản phẩm từ bảng Product
+
+  @Prop({ required: true })
+  agentName: string; // Tên đại lý từ bảng User
+
   @Prop({ required: true, min: 0 })
   price: number;
 
@@ -43,3 +49,6 @@ export const QuoteSchema = SchemaFactory.createForClass(Quote);
 QuoteSchema.index({ agentId: 1, status: 1 });
 QuoteSchema.index({ productId: 1 });
 QuoteSchema.index({ expiryDate: 1 });
+QuoteSchema.index({ agentName: 1, product: 1 }); // Index cho matching nhanh
+QuoteSchema.index({ product: 1 });
+QuoteSchema.index({ agentName: 1 });

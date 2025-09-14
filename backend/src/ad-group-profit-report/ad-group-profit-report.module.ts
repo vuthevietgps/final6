@@ -6,20 +6,14 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AdGroupProfitReportController } from './ad-group-profit-report.controller';
 import { AdGroupProfitReportService } from './ad-group-profit-report.service';
-import { Summary2Module } from '../summary2/summary2.module';
 import { AdGroup, AdGroupSchema } from '../ad-group/schemas/ad-group.schema';
-import { Product, ProductSchema } from '../product/schemas/product.schema';
-import { User, UserSchema } from '../user/user.schema';
-import { AdvertisingCost, AdvertisingCostSchema } from '../advertising-cost/schemas/advertising-cost.schema';
+import { Summary5, Summary5Schema } from '../summary5/schemas/summary5.schema';
 
 @Module({
   imports: [
-    Summary2Module,
     MongooseModule.forFeature([
       { name: AdGroup.name, schema: AdGroupSchema },
-      { name: Product.name, schema: ProductSchema },
-  { name: User.name, schema: UserSchema },
-  { name: AdvertisingCost.name, schema: AdvertisingCostSchema }
+      { name: Summary5.name, schema: Summary5Schema },
     ])
   ],
   controllers: [AdGroupProfitReportController],

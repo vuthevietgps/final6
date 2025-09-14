@@ -49,7 +49,6 @@ export const routes: Routes = [
     data: { permissions: ['orders'] },
     children: [
       { path: 'test2', loadComponent: () => import('./features/test-order2/test-order2.component').then(m => m.TestOrder2Component) },
-      { path: 'test', loadComponent: () => import('./features/test-order/test-order.component').then(m => m.TestOrderComponent) },
       { path: '', loadComponent: () => import('./features/order-status/order-status.component').then(m => m.OrderStatusComponent) }
     ]
   },
@@ -136,9 +135,17 @@ export const routes: Routes = [
       { path: 'ad-group-profit-report', loadComponent: () => import('./features/ad-group-profit-report/ad-group-profit-report.component').then(m => m.AdGroupProfitReportComponent) },
       { path: 'summary1', loadComponent: () => import('./features/summary1/summary1.component').then(m => m.Summary1Component) },
       { path: 'summary2', loadComponent: () => import('./features/summary2/summary2.component').then(m => m.Summary2Component) },
+      { path: 'summary4', loadComponent: () => import('./features/summary4/summary4.component').then(m => m.Summary4Component) },
+  { path: 'summary5', loadComponent: () => import('./features/summary5/summary5.component').then(m => m.Summary5Component) },
       { path: 'product-profit', loadComponent: () => import('./features/product-profit-report/product-profit-report.component').then(m => m.ProductProfitReportComponent) },
   { path: '', redirectTo: 'ad-group-profit-report', pathMatch: 'full' }
     ]
+  },
+  {
+    path: 'google-credential',
+    loadComponent: () => import('./features/google-credential/google-credential.component').then(m => m.GoogleCredentialComponent),
+    canActivate: [AuthGuard],
+    data: { permissions: ['admin'] }
   },
   {
     path: 'settings',

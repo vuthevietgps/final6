@@ -3,7 +3,7 @@
   <!-- Header -->
   <div class="header">
     <h2>� Báo Cáo Lợi Nhuận Quảng Cáo Theo Ngày</h2>
-    <p class="description">Dựa trên dữ liệu từ Tổng hợp 2, hiển thị lợi nhuận của từng nhóm quảng cáo theo từng ngày</p>
+    <p class="description">Dựa trên dữ liệu từ Tổng hợp 5 (Summary5), hiển thị lợi nhuận và chi phí quảng cáo theo từng nhóm quảng cáo theo ngày</p>
   </div>
 
   <!-- Filter Panel -->
@@ -12,7 +12,7 @@
       <!-- Period Filter -->
       <div class="filter-group">
         <label>Khoảng thời gian:</label>
-        <select [ngModel]="query.period" (ngModelChange)="onPeriodChange()">
+        <select [ngModel]="query.period" (ngModelChange)="onPeriodChange($event)">
           <option *ngFor="let option of periodOptions" [value]="option.value">{{ option.label }}</option>
         </select>
       </div>
@@ -20,17 +20,17 @@
       <!-- Custom Date Range -->
       <div class="filter-group" *ngIf="isCustomPeriod()">
         <label>Từ ngày:</label>
-        <input type="date" [ngModel]="query.fromDate" (ngModelChange)="onCustomDateChange()" />
+        <input type="date" [ngModel]="query.fromDate" (ngModelChange)="setFromDate($event)" />
       </div>
       <div class="filter-group" *ngIf="isCustomPeriod()">
         <label>Đến ngày:</label>
-        <input type="date" [ngModel]="query.toDate" (ngModelChange)="onCustomDateChange()" />
+        <input type="date" [ngModel]="query.toDate" (ngModelChange)="setToDate($event)" />
       </div>
 
       <!-- Ad Group Filter -->
       <div class="filter-group">
         <label>Nhóm quảng cáo:</label>
-        <select [ngModel]="query.adGroupId" (ngModelChange)="onFilterChange()">
+        <select [ngModel]="query.adGroupId" (ngModelChange)="onAdGroupChange($event)">
           <option value="">Tất cả</option>
           <option *ngFor="let adGroup of adGroups()" [value]="adGroup.adGroupId">{{ adGroup.name }}</option>
         </select>

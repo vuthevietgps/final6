@@ -7,6 +7,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Quote, QuoteDocument } from './schemas/quote.schema';
+import { Product, ProductDocument } from '../product/schemas/product.schema';
 import { GoogleSyncService } from '../google-sync/google-sync.service';
 import { CreateQuoteDto } from './dto/create-quote.dto';
 import { UpdateQuoteDto } from './dto/update-quote.dto';
@@ -15,11 +16,33 @@ import { UpdateQuoteDto } from './dto/update-quote.dto';
 export class QuoteService {
   constructor(
     @InjectModel(Quote.name) private quoteModel: Model<QuoteDocument>,
+    @InjectModel(Product.name) private productModel: Model<ProductDocument>,
     private readonly googleSync: GoogleSyncService,
   ) {}
 
   async create(createQuoteDto: CreateQuoteDto): Promise<Quote> {
-    const createdQuote = new this.quoteModel(createQuoteDto);
+    // Nếu không có product name và agent name, tự động lấy từ database
+    let { product, agentName } = createQuoteDto;
+    
+    if (!product || !agentName) {
+      const [productDoc, userModel] = await Promise.all([
+        this.productModel.findById(createQuoteDto.productId).exec(),
+        // Import User model inline vì không có sẵn
+        this.quoteModel.db.models.User || this.quoteModel.db.model('User')
+      ]);
+      
+      const userDoc = await userModel.findById(createQuoteDto.agentId).exec();
+      
+      product = product || productDoc?.name || 'Unknown Product';
+      agentName = agentName || userDoc?.fullName || 'Unknown Agent';
+    }
+    
+    const createdQuote = new this.quoteModel({
+      ...createQuoteDto,
+      product,
+      agentName
+    });
+    
     const saved = await createdQuote.save();
     const agentId = String(saved.agentId);
     // Cập nhật Summary1 cho cặp agent+product và chỉ push lên Google (bỏ rebuild toàn bộ)
@@ -192,5 +215,62 @@ export class QuoteService {
         defaultFilter: { $or: [{ isActive: true }, { isActive: { $exists: false } }] },
       },
     };
+  }
+
+  /**
+   * Migration: Cập nhật tất cả quotes hiện có để có trường product và agentName
+   */
+  async migrateProductAndAgentNames(): Promise<{
+    processed: number;
+    updated: number;
+    errors: string[];
+  }> {
+    const result = { processed: 0, updated: 0, errors: [] };
+    
+    try {
+      // Lấy tất cả quotes với populate để có tên
+      const quotes = await this.quoteModel.find({
+        $or: [
+          { product: { $exists: false } },
+          { agentName: { $exists: false } },
+          { product: null },
+          { agentName: null },
+          { product: '' },
+          { agentName: '' }
+        ]
+      })
+      .populate('productId', 'name')
+      .populate('agentId', 'fullName')
+      .exec();
+
+      console.log(`Found ${quotes.length} quotes need migration`);
+
+      for (const quote of quotes) {
+        result.processed++;
+        
+        try {
+          const product = (quote.productId as any)?.name || 'Unknown Product';
+          const agentName = (quote.agentId as any)?.fullName || 'Unknown Agent';
+          
+          if (product !== quote.product || agentName !== quote.agentName) {
+            await this.quoteModel.findByIdAndUpdate(quote._id, {
+              product,
+              agentName
+            });
+            result.updated++;
+            console.log(`Updated quote ${quote._id}: ${product} - ${agentName}`);
+          }
+          
+        } catch (error) {
+          result.errors.push(`Quote ${quote._id}: ${error.message}`);
+        }
+      }
+      
+      return result;
+      
+    } catch (error) {
+      result.errors.push(`Migration failed: ${error.message}`);
+      return result;
+    }
   }
 }

@@ -33,7 +33,7 @@ export class AuthService {
   'labor-costs', 'other-costs', 'salary-config',
   // Newly explicit permissions used by Sidebar
   'customers', 'purchase-costs',
-      'quotes', 'reports', 'export', 'import', 'settings'
+      'quotes', 'reports', 'export', 'import', 'settings', 'admin'
     ],
     [UserRole.MANAGER]: [
       'orders', // Đơn hàng

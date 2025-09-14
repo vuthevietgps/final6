@@ -2,16 +2,15 @@
  * File: test-order2/test-order2.controller.ts
  * REST Controller cho Đơn Hàng Thử Nghiệm 2
  */
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Express } from 'express';
-import { TestOrder2Service } from './test-order2.service';
 import { CreateTestOrder2Dto } from './dto/create-test-order2.dto';
 import { UpdateTestOrder2Dto } from './dto/update-test-order2.dto';
+import { TestOrder2Service } from './test-order2.service';
 
 @Controller('test-order2')
 export class TestOrder2Controller {
-  constructor(private readonly service: TestOrder2Service) {}
+  constructor(private readonly service: TestOrder2Service) { }
 
   @Post()
   create(@Body() dto: CreateTestOrder2Dto) {

@@ -2,11 +2,11 @@
  * File: features/delivery-status/delivery-status.component.ts
  * Mục đích: Giao diện quản lý Trạng thái giao hàng - chỉnh sửa inline (không form), giống Trạng thái sản xuất.
  */
-import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DeliveryStatusService } from './delivery-status.service';
-import { DeliveryStatus, CreateDeliveryStatusDto } from './models/delivery-status.model';
+import { CreateDeliveryStatusDto, DeliveryStatus } from './models/delivery-status.model';
 
 @Component({
   selector: 'app-delivery-status',
@@ -145,7 +145,7 @@ export class DeliveryStatusComponent implements OnInit {
   addNew(): void {
     const data: CreateDeliveryStatusDto = {
       name: 'Trạng thái mới',
-  description: 'Mô tả trạng thái mới',
+      description: 'Mô tả trạng thái mới',
       color: '#3498db',
       icon: '🚚',
       isActive: true,

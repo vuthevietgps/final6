@@ -35,6 +35,14 @@ export class CreateQuoteDto {
   agentId: string;
 
   @IsNotEmpty()
+  @IsString()
+  product: string; // Tên sản phẩm
+
+  @IsNotEmpty()
+  @IsString()
+  agentName: string; // Tên đại lý
+
+  @IsNotEmpty()
   @IsNumber()
   @Min(0)
   @Type(() => Number)

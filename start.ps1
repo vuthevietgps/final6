@@ -8,7 +8,8 @@ Write-Host ""
 try {
     $nodeVersion = node --version
     Write-Host "✅ Node.js version: $nodeVersion" -ForegroundColor Green
-} catch {
+}
+catch {
     Write-Host "❌ Node.js chưa được cài đặt. Vui lòng cài đặt Node.js trước." -ForegroundColor Red
     exit 1
 }
@@ -17,7 +18,8 @@ try {
 try {
     $npmVersion = npm --version
     Write-Host "✅ npm version: $npmVersion" -ForegroundColor Green
-} catch {
+}
+catch {
     Write-Host "❌ npm chưa được cài đặt. Vui lòng cài đặt npm trước." -ForegroundColor Red
     exit 1
 }

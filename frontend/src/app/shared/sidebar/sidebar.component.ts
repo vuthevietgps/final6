@@ -1,9 +1,35 @@
 /**
  * File: shared/sidebar/sidebar.component.ts
- * Mục đích: Thành phần Sidebar điều hướng trái, chứa menu tới các tính năng.
+ * Mục đích: Thành phần Sidebar điều hướng                {
+      icon: '📈',
+      label: 'Báo Cáo',
+      route: '/reports',
+      children: [
+        { icon: '📊', label: 'Lợi nhuận và chi phí quảng cáo', route: '/reports/ad-group-profit' },
+        { icon: '📈', label: 'Lợi Nhuận QC Theo Ngày', route: '/reports/ad-group-profit-report' },
+        { icon: '📈', label: 'Tổng Hợp 1', route: '/reports/summary1' },
+        { icon: '📑', label: 'Tổng Hợp 2', route: '/reports/summary2' },
+        { icon: '📅', label: 'Lợi Nhuận Sản Phẩm Theo Ngày', route: '/reports/product-profit' }
+      ]
+    }, icon: '📈', label: 'Tổng Hợp 1', route: '/reports/summary1' },
+        { icon: '📑', label: 'Tổng Hợp 2', route: '/reports/summary2' },
+        { icon: '📅', label: 'Lợi Nhuận Sản Phẩm Theo Ngày', route: '/reports/product-profit' }
+      ]: [
+        { icon: '📊', label: 'Lợi nhuận và chi phí quảng cáo', route: '/reports/ad-group-profit' },
+        { icon: '📈', label: 'Lợi Nhuận QC Theo Ngày', route: '/reports/ad-group-profit-report' },
+        { icon: '📈', label: 'Tổng Hợp 1', route: '/reports/summary1' },
+        { icon: '📑', label: 'Tổng Hợp 2', route: '/reports/summary2' },
+        { icon: '📅', label: 'Lợi Nhuận Sản Phẩm Theo Ngày', route: '/reports/product-profit' }
+      ]: [
+        { icon: '📊', label: 'Lợi nhuận và chi phí quảng cáo', route: '/reports/ad-group-profit' },
+        { icon: '📈', label: 'Lợi Nhuận QC Theo Ngày', route: '/reports/ad-group-profit-report' },
+        { icon: '📈', label: 'Tổng Hợp 1', route: '/reports/summary1' },
+        { icon: '📑', label: 'Tổng Hợp 2', route: '/reports/summary2' },
+        { icon: '📅', label: 'Lợi Nhuận Sản Phẩm Theo Ngày', route: '/reports/product-profit' }
+      ]ứa menu tới các tính năng.
  */
-import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Component } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 
@@ -22,7 +48,7 @@ interface MenuItem {
   styleUrls: ['./sidebar.component.css']
 })
 export class SidebarComponent {
-  constructor(public authService: AuthService) {}
+  constructor(public authService: AuthService) { }
 
   menuItems: MenuItem[] = [
     {
@@ -35,7 +61,6 @@ export class SidebarComponent {
       label: 'Quản Lý Đơn Hàng',
       route: '/orders',
       children: [
-        { icon: '🧪', label: 'Đơn Hàng Thử Nghiệm', route: '/orders/test' },
         { icon: '🧪', label: 'Đơn Hàng Thử Nghiệm 2', route: '/orders/test2' }
       ]
     },
@@ -59,8 +84,8 @@ export class SidebarComponent {
       route: '/advertising',
       children: [
         { icon: '🎯', label: 'Tài Khoản Quảng Cáo', route: '/ad-accounts' },
-        { icon: '💰', label: 'Chi Phí Quảng Cáo 2', route: '/costs/advertising2' },
-        { icon: '📢', label: 'Nhóm Quảng Cáo', route: '/ad-groups' },
+        { icon: '�', label: 'Nhóm Quảng Cáo', route: '/ad-groups' },
+        { icon: '�', label: 'Chi Phí Quảng Cáo 2', route: '/costs/advertising2' },
         { icon: '📊', label: 'Số Lượng Nhóm Quảng Cáo', route: '/ad-group-counts' }
       ]
     },
@@ -69,7 +94,7 @@ export class SidebarComponent {
       label: 'Chi Phí',
       route: '/costs',
       children: [
-  { icon: '🧑‍🏭', label: 'Chi Phí Nhân Công 1', route: '/costs/labor1' },
+        { icon: '🧑‍🏭', label: 'Chi Phí Nhân Công 1', route: '/costs/labor1' },
         { icon: '🛒', label: 'Chi Phí Nhập Hàng', route: '/costs/purchase' },
         { icon: '💸', label: 'Chi Phí Khác', route: '/costs/other' }
       ]
@@ -93,10 +118,12 @@ export class SidebarComponent {
       label: 'Báo Cáo',
       route: '/reports',
       children: [
-  { icon: '📊', label: 'Lợi nhuận và chi phí quảng cáo', route: '/reports/ad-group-profit' },
-  { icon: '📈', label: 'Lợi Nhuận QC Theo Ngày', route: '/reports/ad-group-profit-report' },
+        { icon: '📊', label: 'Lợi nhuận và chi phí quảng cáo', route: '/reports/ad-group-profit' },
+        { icon: '📈', label: 'Lợi Nhuận QC Theo Ngày', route: '/reports/ad-group-profit-report' },
         { icon: '📈', label: 'Tổng Hợp 1', route: '/reports/summary1' },
         { icon: '📑', label: 'Tổng Hợp 2', route: '/reports/summary2' },
+        { icon: '📋', label: 'Tổng Hợp 4', route: '/reports/summary4' },
+        { icon: '🧮', label: 'Tổng Hợp 5', route: '/reports/summary5' },
         { icon: '📅', label: 'Lợi Nhuận Sản Phẩm Theo Ngày', route: '/reports/product-profit' }
       ]
     },
@@ -109,6 +136,11 @@ export class SidebarComponent {
       icon: '💰',
       label: 'Lợi Nhuận',
       route: '/profit'
+    },
+    {
+      icon: '🔑',
+      label: 'Google Credential',
+      route: '/google-credential'
     },
     {
       icon: '⚙️',
@@ -146,18 +178,18 @@ export class SidebarComponent {
       '/products': 'products',
       '/product-category': 'product-categories',
       '/product': 'products',
-  '/customers': 'customers',
+      '/customers': 'customers',
       '/ad-accounts': 'ad-accounts',
       '/costs/advertising2': 'advertising-costs',
       '/ad-groups': 'ad-groups',
       '/ad-group-counts': 'ad-groups',
-  // Sử dụng đường dẫn đầy đủ dưới nhóm /costs cho labor1
-  '/costs/labor1': 'labor-costs',
-  // Giữ ánh xạ cũ để tránh lỗi nếu còn nơi nào dùng route cũ
-  '/labor1': 'labor-costs',
-  '/costs/purchase': 'purchase-costs',
+      // Sử dụng đường dẫn đầy đủ dưới nhóm /costs cho labor1
+      '/costs/labor1': 'labor-costs',
+      // Giữ ánh xạ cũ để tránh lỗi nếu còn nơi nào dùng route cũ
+      '/labor1': 'labor-costs',
+      '/costs/purchase': 'purchase-costs',
       '/costs/other': 'other-costs',
-  '/costs/salary': 'salary-config',
+      '/costs/salary': 'salary-config',
       '/production-status': 'production-status',
       '/delivery-status': 'delivery-status',
       '/quotes': 'quotes',
@@ -165,8 +197,10 @@ export class SidebarComponent {
       '/reports/ad-group-profit-report': 'reports',
       '/reports/summary1': 'reports',
       '/reports/summary2': 'reports',
+      '/reports/summary4': 'reports',
+  '/reports/summary5': 'reports',
       '/reports/product-profit': 'reports',
-  '/profit': 'reports',
+      '/profit': 'reports',
       '/settings': 'settings'
     };
 
