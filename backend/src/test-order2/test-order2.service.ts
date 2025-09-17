@@ -53,14 +53,14 @@ export class TestOrder2Service {
       console.error('Failed to sync Summary4 after create:', err);
     });
 
-    // Trigger sync Summary5 (ngày của đơn)
-    try {
+    // Trigger sync Summary5 (ngày của đơn) - fire-and-forget to avoid blocking response
+    {
       const d = new Date(saved.createdAt);
       const startDate = new Date(d); startDate.setHours(0,0,0,0);
       const endDate = new Date(d); endDate.setHours(23,59,59,999);
-      await this.summary5Service.sync({ startDate: startDate.toISOString(), endDate: endDate.toISOString() });
-    } catch (e) {
-      console.warn('Failed to sync Summary5 after create:', e?.message || e);
+      this.summary5Service
+        .sync({ startDate: startDate.toISOString(), endDate: endDate.toISOString() })
+        .catch((e) => console.warn('Failed to sync Summary5 after create:', e?.message || e));
     }
     
     // Trigger sync theo đại lý sau khi tạo đơn
@@ -80,6 +80,8 @@ export class TestOrder2Service {
     isActive?: string; 
     from?: string; 
     to?: string;
+    productionStatus?: string;
+    orderStatus?: string;
     page?: number;
     limit?: number;
     sortBy?: string;
@@ -94,7 +96,7 @@ export class TestOrder2Service {
     };
   }> {
     const filter: any = {};
-    const { q, productId, agentId, adGroupId, isActive, from, to, page = 1, limit = 50, sortBy, sortOrder } = params || {};
+  const { q, productId, agentId, adGroupId, isActive, from, to, productionStatus, orderStatus, page = 1, limit = 50, sortBy, sortOrder } = params || {};
     
     if (q) {
       filter.$or = [
@@ -114,6 +116,8 @@ export class TestOrder2Service {
       if (from) filter.createdAt.$gte = new Date(from);
       if (to) filter.createdAt.$lte = new Date(to);
     }
+    if (productionStatus) filter.productionStatus = productionStatus;
+    if (orderStatus) filter.orderStatus = orderStatus;
 
     // Pagination
     const skip = (page - 1) * limit;
@@ -186,14 +190,14 @@ export class TestOrder2Service {
       console.error('Failed to sync Summary4 after update:', err);
     });
 
-    // Trigger sync Summary5 (ngày của đơn)
-    try {
+    // Trigger sync Summary5 (ngày của đơn) - fire-and-forget
+    {
       const d = new Date(doc.createdAt);
       const startDate = new Date(d); startDate.setHours(0,0,0,0);
       const endDate = new Date(d); endDate.setHours(23,59,59,999);
-      await this.summary5Service.sync({ startDate: startDate.toISOString(), endDate: endDate.toISOString() });
-    } catch (e) {
-      console.warn('Failed to sync Summary5 after update:', e?.message || e);
+      this.summary5Service
+        .sync({ startDate: startDate.toISOString(), endDate: endDate.toISOString() })
+        .catch((e) => console.warn('Failed to sync Summary5 after update:', e?.message || e));
     }
     
     // Trigger sync theo đại lý của đơn hàng này
@@ -213,14 +217,14 @@ export class TestOrder2Service {
       console.error('Failed to sync Summary4 after delete:', err);
     });
 
-    // Trigger sync Summary5 (ngày của đơn)
-    try {
+    // Trigger sync Summary5 (ngày của đơn) - fire-and-forget
+    {
       const d = new Date(doc.createdAt);
       const startDate = new Date(d); startDate.setHours(0,0,0,0);
       const endDate = new Date(d); endDate.setHours(23,59,59,999);
-      await this.summary5Service.sync({ startDate: startDate.toISOString(), endDate: endDate.toISOString() });
-    } catch (e) {
-      console.warn('Failed to sync Summary5 after delete:', e?.message || e);
+      this.summary5Service
+        .sync({ startDate: startDate.toISOString(), endDate: endDate.toISOString() })
+        .catch((e) => console.warn('Failed to sync Summary5 after delete:', e?.message || e));
     }
     
     // Trigger sync theo đại lý sau khi xóa đơn
@@ -535,13 +539,13 @@ export class TestOrder2Service {
     this.summary4Sync.syncFromTestOrder2().catch(err => {
       console.error('Failed to sync Summary4 after import update:', err);
     });
-    try {
+    {
       const d = new Date(doc.createdAt);
       const startDate = new Date(d); startDate.setHours(0,0,0,0);
       const endDate = new Date(d); endDate.setHours(23,59,59,999);
-      await this.summary5Service.sync({ startDate: startDate.toISOString(), endDate: endDate.toISOString() });
-    } catch (e) {
-      console.warn('Failed to sync Summary5 after import update:', e?.message || e);
+      this.summary5Service
+        .sync({ startDate: startDate.toISOString(), endDate: endDate.toISOString() })
+        .catch((e) => console.warn('Failed to sync Summary5 after import update:', e?.message || e));
     }
   }
 
@@ -608,13 +612,13 @@ export class TestOrder2Service {
         console.error('Failed to sync Summary4 after delivery update:', err);
       });
 
-      try {
+      {
         const d = new Date(doc.createdAt);
         const startDate = new Date(d); startDate.setHours(0,0,0,0);
         const endDate = new Date(d); endDate.setHours(23,59,59,999);
-        await this.summary5Service.sync({ startDate: startDate.toISOString(), endDate: endDate.toISOString() });
-      } catch (e) {
-        console.warn('Failed to sync Summary5 after delivery update:', e?.message || e);
+        this.summary5Service
+          .sync({ startDate: startDate.toISOString(), endDate: endDate.toISOString() })
+          .catch((e) => console.warn('Failed to sync Summary5 after delivery update:', e?.message || e));
       }
     } catch (error) {
       throw new Error(`Dòng ${rowNumber}: ${error.message}`);

@@ -37,48 +37,83 @@ select, .status-dropdown { transition: none !important; will-change: auto !impor
 .badge-input { width: 100%; padding: 4px 10px; background: #f3f4f6; border: none; border-radius: 9999px; text-align: center; }
 
 /* === TABLE === */
-.table-wrapper { overflow: auto; max-height: calc(100vh - 300px); border: 1px solid #f0f0f0; border-radius: 10px; box-shadow: 0 4px 12px rgba(0, 0, 0, .04); position: relative; will-change: scroll-position; }
+/* === SPLIT TABLE CONTAINER === */
+/* Shared sizing variables for perfect alignment */
+.split-table { 
+  --fixed-width: 510px; /* 110 + 200 + 200 */
+  --row-h: 46px;
+  display: flex; 
+  border: 1px solid #f0f0f0; 
+  border-radius: 10px; 
+  box-shadow: 0 4px 12px rgba(0,0,0,.04); 
+  overflow: hidden; 
+  position: relative;
+}
+.fixed-pane { flex: 0 0 var(--fixed-width); background: #fff; /* no border here to avoid double lines */ overflow-y: auto; max-height: calc(100vh - 300px); position: relative; }
+/* Hide vertical scrollbar in fixed pane (keep scroll functionality) */
+.fixed-pane { -ms-overflow-style: none; scrollbar-width: none; }
+.fixed-pane::-webkit-scrollbar { width: 0 !important; height: 0 !important; }
+.scroll-pane { flex: 1 1 auto; overflow: auto; max-height: calc(100vh - 300px); scrollbar-gutter: stable both-edges; }
 
-.data-table {
-  width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; table-layout: auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06); min-width: 1500px; --date-col-width: 110px; --agent-col-width: 220px;
+.fixed-table, .scroll-table { width: 100%; border-collapse: separate; border-spacing: 0; background: white; table-layout: fixed; }
+/* Sum-wide min width so columns never overlap; adjust if you change column widths */
+.scroll-table { min-width: 2800px; }
+
+.fixed-table th, .scroll-table th, .fixed-table td, .scroll-table td { border: none; border-bottom: 1px solid #f1f5f9; padding: 10px 8px; vertical-align: middle; font-size: 0.875rem; box-sizing: border-box; }
+.fixed-table thead th, .scroll-table thead th { height: var(--row-h); line-height: calc(var(--row-h) - 2px); white-space: nowrap; }
+.fixed-table tbody td, .scroll-table tbody td { height: var(--row-h); }
+.fixed-table thead th, .scroll-table thead th { position: sticky; top: 0; z-index: 2; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; font-weight: 600; }
+
+.fixed-table tbody tr:nth-child(even), .scroll-table tbody tr:nth-child(even) { background: #f8fafc; }
+.fixed-table tbody tr:hover, .scroll-table tbody tr:hover { background: #e0f2fe; }
+
+/* Seam/divider between two panes (single source of truth) */
+.split-table::before { 
+  content: ''; 
+  position: absolute; 
+  top: 0; bottom: 0; 
+  left: var(--fixed-width); 
+  width: 1px; 
+  background: linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.02));
+  pointer-events: none;
+  z-index: 3;
 }
 
-.data-table th, .data-table td { border: none; border-bottom: 1px solid #f1f5f9; padding: 12px 8px; box-sizing: border-box; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+/* Column widths (fixed pane) */
+.fixed-table .col-date { width: 110px; min-width: 110px; max-width: 110px; }
+.fixed-table .col-customer { width: 200px; min-width: 200px; max-width: 200px; }
+.fixed-table .col-product { width: 200px; min-width: 200px; max-width: 200px; }
 
-.data-table th { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-align: left; position: sticky; top: 0; z-index: 2; font-weight: 600; font-size: 0.875rem; letter-spacing: 0.025em; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); }
-
-.data-table td { font-size: 0.875rem; color: #374151; line-height: 1.5; }
-.data-table .muted { color: #6b7280; font-size: 0.8125rem; }
-
-.data-table tbody tr { background: white; }
-.data-table tbody tr:nth-child(even) { background: #f8fafc; }
-.data-table tbody tr:hover { background: #e0f2fe !important; }
-
-/* === STICKY COLUMNS === */
-.sticky-col { position: sticky !important; left: 0 !important; background: #fff !important; z-index: 10 !important; box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1); border-right: 2px solid #e5e5e5; top: auto; }
-.sticky-col-2 { position: sticky !important; left: 110px !important; background: #fff !important; z-index: 9 !important; box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1); border-right: 2px solid #e5e5e5; top: auto; }
-.data-table thead .sticky-col, .data-table thead .sticky-col-2 { z-index: 12 !important; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15); color: white; font-weight: 600; border-right: 2px solid rgba(255, 255, 255, 0.2); }
-.data-table tbody tr:hover .sticky-col, .data-table tbody tr:hover .sticky-col-2 { background: #f8fafc !important; }
-
-/* === COLUMN SIZING === */
-.col-date { width: 110px; min-width: 110px; max-width: 110px; }
-.col-customer { width: 200px; min-width: 200px; max-width: 200px; }
-.col-agent { width: var(--agent-col-width, 220px); }
-.col-product { min-width: 200px; }
-.col-wide { min-width: 240px; }
-.col-tracking { min-width: 60px; }
-.col-wider { min-width: 280px; }
+/* Column widths (scroll pane) reuse existing ones */
 .col-qty { width: 60px; min-width: 60px; }
-.col-active { width: 84px; }
-.w-order-status { min-width: 260px; }
+.col-agent { width: var(--agent-col-width, 260px); }
+.col-wide { min-width: 280px; }
+.col-tracking { min-width: 140px; }
+.w-order-status { min-width: 320px; }
+/* Wider text columns in right pane */
+.col-wider { min-width: 340px; }
+/* Delete column */
+.col-delete { width: 90px; min-width: 90px; }
+
+/* Unify form control heights across both panes to avoid row drift */
+.fixed-table input[type="text"], .fixed-table input[type="number"], .fixed-table select,
+.scroll-table input[type="text"], .scroll-table input[type="number"], .scroll-table select {
+  height: 32px !important;
+  line-height: 32px !important;
+  padding: 4px 8px !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+
+/* Specific widths for 3 requested columns */
+.col-service { min-width: 600px; }
+.col-prod-status { min-width: 260px; }
+.col-order-status { min-width: 360px; }
+.col-submit-link { min-width: 600px; }
 .w-100 { width: 100%; }
 .input-qty { width: 100%; }
-
-/* === TABLE INPUTS === */
-.data-table td input[type="text"], .data-table td input[type="number"] { width: 100%; box-sizing: border-box; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 8px; font-size: 0.875rem; background: white; outline: none; }
-.data-table td select { width: 100% !important; box-sizing: border-box !important; border-radius: 6px !important; padding: 6px 8px !important; font-size: 0.875rem !important; outline: none !important; }
-.data-table td input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); background: #fefefe; }
-.data-table td input:hover { border-color: #cbd5e1; }
 
 /* === PAGINATION === */
 .pagination-wrapper { display: flex; justify-content: space-between; align-items: center; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6; }

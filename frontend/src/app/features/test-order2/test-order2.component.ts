@@ -53,6 +53,8 @@ export class TestOrder2Component implements OnInit, AfterViewInit {
   // Refs for measuring sticky offsets
   @ViewChild('dateHeader', { static: false }) dateHeader?: ElementRef<HTMLElement>;
   @ViewChild('tableEl', { static: false }) tableEl?: ElementRef<HTMLElement>;
+  @ViewChild('fixedPane', { static: false }) fixedPane?: ElementRef<HTMLElement>;
+  @ViewChild('scrollPane', { static: false }) scrollPane?: ElementRef<HTMLElement>;
 
   // Filters
   q = signal('');
@@ -72,6 +74,9 @@ export class TestOrder2Component implements OnInit, AfterViewInit {
   totalPages = computed(() => Math.ceil(this.totalItems() / this.pageSize()));
   sortBy = signal('createdAt');
   sortOrder = signal<'asc' | 'desc'>('desc');
+
+  // Row highlighting for split table
+  highlightedRowIndex: number | null = null;
 
   // Quick stats for header badges
   stats = computed(() => {
@@ -97,7 +102,27 @@ export class TestOrder2Component implements OnInit, AfterViewInit {
   ngAfterViewInit(): void {
     // Adjust sticky offsets after initial view render
     setTimeout(() => this.updateStickyOffsets(), 0);
+    // Attach scroll sync if elements are present later
+    setTimeout(() => this.attachScrollSync(), 50);
   }
+
+  private attachScrollSync() {
+    const fixed = this.fixedPane?.nativeElement;
+    const scroll = this.scrollPane?.nativeElement;
+    if (!fixed || !scroll) return;
+    let syncing = false;
+    const syncFromFixed = () => {
+      if (syncing) return; syncing = true; scroll.scrollTop = fixed.scrollTop; syncing = false;
+    };
+    const syncFromScroll = () => {
+      if (syncing) return; syncing = true; fixed.scrollTop = scroll.scrollTop; syncing = false;
+    };
+    fixed.addEventListener('scroll', syncFromFixed, { passive: true });
+    scroll.addEventListener('scroll', syncFromScroll, { passive: true });
+  }
+
+  onFixedScroll(evt: Event) { const scroll = this.scrollPane?.nativeElement; if (scroll) scroll.scrollTop = (evt.target as HTMLElement).scrollTop; }
+  onScrollPane(evt: Event) { const fixed = this.fixedPane?.nativeElement; if (fixed) fixed.scrollTop = (evt.target as HTMLElement).scrollTop; }
 
   @HostListener('window:resize')
   onResize() { this.updateStickyOffsets(); }
@@ -934,6 +959,15 @@ export class TestOrder2Component implements OnInit, AfterViewInit {
     this.pageSize.set(newSize);
     this.currentPage.set(1); // Reset to first page
     this.refresh();
+  }
+
+  // Row highlighting methods for split table
+  highlightRow(index: number): void {
+    this.highlightedRowIndex = index;
+  }
+
+  unhighlightRow(): void {
+    this.highlightedRowIndex = null;
   }
 
   // Make Math available in template

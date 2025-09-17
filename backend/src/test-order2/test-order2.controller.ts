@@ -27,6 +27,8 @@ export class TestOrder2Controller {
     @Query('isActive') isActive?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @Query('productionStatus') productionStatus?: string,
+    @Query('orderStatus') orderStatus?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('sortBy') sortBy?: string,
@@ -36,6 +38,7 @@ export class TestOrder2Controller {
     const limitNum = parseInt(limit) || 50;
     return this.service.findAll({ 
       q, productId, agentId, adGroupId, isActive, from, to,
+      productionStatus, orderStatus,
       page: pageNum, limit: limitNum, sortBy, sortOrder 
     });
   }
