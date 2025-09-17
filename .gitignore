@@ -153,3 +153,9 @@ backend/**/*.json
 !backend/**/nest-cli.json
 dongbodulieuweb-*.json
 service-account-*.json
+google-credentials.env
+
+# Additional security files
+*.pem
+*.key
+*.p12

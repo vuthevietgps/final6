@@ -1,11 +1,16 @@
 /**
  * File: test-order2/dto/create-test-order2.dto.ts
  */
-import { IsBoolean, IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsMongoId, IsNotEmpty, IsNumber, IsOptional, IsString, Min, Matches } from 'class-validator';
 
 export class CreateTestOrder2Dto {
   @IsMongoId()
   productId: string; // dropdown sản phẩm
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^#[0-9A-F]{6}$/i, { message: 'Product color must be a valid hex color' })
+  productColor?: string; // Màu sắc của sản phẩm
 
   @IsString()
   @IsNotEmpty()

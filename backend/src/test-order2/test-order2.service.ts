@@ -13,12 +13,15 @@ import { Summary5Service } from '../summary5/summary5.service';
 import { Summary4Service } from '../summary4/summary4.service';
 import { CreateTestOrder2Dto } from './dto/create-test-order2.dto';
 import { UpdateTestOrder2Dto } from './dto/update-test-order2.dto';
+import { UpdateDeliveryStatusDto } from './dto/update-delivery-status.dto';
 import { TestOrder2, TestOrder2Document } from './schemas/test-order2.schema';
+import { Product, ProductDocument } from '../product/schemas/product.schema';
 
 @Injectable()
 export class TestOrder2Service {
   constructor(
     @InjectModel(TestOrder2.name) private readonly model: Model<TestOrder2Document>,
+    @InjectModel(Product.name) private readonly productModel: Model<ProductDocument>,
     private readonly googleSync: GoogleSyncService,
     private readonly summary4Sync: Summary4Service, // Inject Summary4Service
     private readonly summary5Service: Summary5Service, // Inject Summary5Service
@@ -69,9 +72,30 @@ export class TestOrder2Service {
     return saved;
   }
 
-  async findAll(params?: { q?: string; productId?: string; agentId?: string; adGroupId?: string; isActive?: string; from?: string; to?: string }): Promise<TestOrder2[]> {
+  async findAll(params?: { 
+    q?: string; 
+    productId?: string; 
+    agentId?: string; 
+    adGroupId?: string; 
+    isActive?: string; 
+    from?: string; 
+    to?: string;
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: string;
+  }): Promise<{
+    data: TestOrder2[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }> {
     const filter: any = {};
-    const { q, productId, agentId, adGroupId, isActive, from, to } = params || {};
+    const { q, productId, agentId, adGroupId, isActive, from, to, page = 1, limit = 50, sortBy, sortOrder } = params || {};
+    
     if (q) {
       filter.$or = [
         { customerName: new RegExp(q, 'i') },
@@ -82,18 +106,48 @@ export class TestOrder2Service {
     if (productId) filter.productId = new Types.ObjectId(productId);
     if (agentId) filter.agentId = new Types.ObjectId(agentId);
     if (adGroupId) filter.adGroupId = adGroupId;
-    if (isActive === 'true') filter.isActive = true; else if (isActive === 'false') filter.isActive = false;
+    if (isActive === 'true') filter.isActive = true; 
+    else if (isActive === 'false') filter.isActive = false;
+    
     if (from || to) {
       filter.createdAt = {};
       if (from) filter.createdAt.$gte = new Date(from);
       if (to) filter.createdAt.$lte = new Date(to);
     }
-    return this.model
-      .find(filter)
-      .populate('productId', 'name')
-      .populate('agentId', 'fullName')
-      .sort({ createdAt: -1 })
-      .exec();
+
+    // Pagination
+    const skip = (page - 1) * limit;
+    
+    // Sorting
+    const sort: any = {};
+    if (sortBy) {
+      sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+    } else {
+      sort.createdAt = -1; // Default sort
+    }
+
+    // Execute queries in parallel
+    const [data, total] = await Promise.all([
+      this.model
+        .find(filter)
+        .populate('productId', 'name')
+        .populate('agentId', 'fullName')
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.model.countDocuments(filter).exec()
+    ]);
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
   }
 
   async findOne(id: string): Promise<TestOrder2> {
@@ -104,7 +158,9 @@ export class TestOrder2Service {
 
   async update(id: string, dto: UpdateTestOrder2Dto): Promise<TestOrder2> {
     const update: any = {};
-    if (dto.productId !== undefined) update.productId = new Types.ObjectId(dto.productId);
+    if (dto.productId !== undefined) {
+      update.productId = new Types.ObjectId(dto.productId);
+    }
     if (dto.agentId !== undefined) update.agentId = new Types.ObjectId(dto.agentId);
     if (dto.customerName !== undefined) update.customerName = dto.customerName?.trim();
   if (dto.adGroupId !== undefined) update.adGroupId = (dto.adGroupId?.trim() || '0');
@@ -277,6 +333,135 @@ export class TestOrder2Service {
     };
   }
 
+  /**
+   * Export template đơn giản chỉ để cập nhật trạng thái giao hàng
+   */
+  async exportDeliveryTemplate(): Promise<{
+    headers: string[];
+    sampleData: any[];
+    instructions: string[];
+  }> {
+    // Lấy một vài đơn hàng mẫu từ database
+    const sampleOrders = await this.model
+      .find()
+      .select('_id trackingNumber orderStatus')
+      .limit(5)
+      .exec();
+
+    return {
+      headers: ['_id', 'trackingNumber', 'orderStatus'],
+      sampleData: sampleOrders.length > 0 ? sampleOrders.map(order => ({
+        '_id': order._id.toString(),
+        'trackingNumber': order.trackingNumber || 'VN123456789',
+        'orderStatus': order.orderStatus || 'Đã giao hàng'
+      })) : [
+        {
+          '_id': '66e3f4b2c8d9e1234567890a',
+          'trackingNumber': 'VN123456789',
+          'orderStatus': 'Đã giao hàng'
+        },
+        {
+          '_id': '66e3f4b2c8d9e1234567890b',
+          'trackingNumber': 'VN987654321',
+          'orderStatus': 'Đang vận chuyển'
+        }
+      ],
+      instructions: [
+        '1. Chỉ cập nhật cột trackingNumber và orderStatus',
+        '2. Giữ nguyên _id để xác định đúng đơn hàng cần cập nhật',
+        '3. Trạng thái có thể: "Chưa có mã vận đơn", "Đã có mã vận đơn", "Đang vận chuyển", "Đã giao hàng", "Giao không thành công", "Đã hủy"',
+        '4. File chỉ chứa 3 cột để dễ xử lý và tránh lỗi'
+      ]
+    };
+  }
+
+  /**
+   * Import file cập nhật trạng thái giao hàng đơn giản
+   */
+  async importDeliveryStatus(file: Express.Multer.File): Promise<{
+    success: number;
+    errors: Array<{ row: number; error: string; data?: any }>;
+    message: string;
+  }> {
+    try {
+      let records: any[] = [];
+
+      if (file.mimetype === 'text/csv') {
+        records = await this.parseCsvFile(file.buffer);
+      } else if (file.mimetype.includes('excel') || file.mimetype.includes('spreadsheet')) {
+        records = await this.parseExcelFile(file.buffer);
+      } else {
+        throw new BadRequestException('Định dạng file không được hỗ trợ');
+      }
+
+      const results = { success: 0, errors: [] };
+
+      for (let i = 0; i < records.length; i++) {
+        try {
+          const record = records[i];
+          await this.processDeliveryStatusUpdate(record, i + 1);
+          results.success++;
+        } catch (error) {
+          results.errors.push({
+            row: i + 1,
+            error: error.message,
+            data: records[i]
+          });
+        }
+      }
+
+      return {
+        ...results,
+        message: `Đã cập nhật trạng thái giao hàng cho ${results.success}/${records.length} đơn hàng. Lỗi: ${results.errors.length}`
+      };
+    } catch (error) {
+      throw new BadRequestException(`Lỗi xử lý file: ${error.message}`);
+    }
+  }
+
+  /**
+   * Export Excel file chỉ chứa các đơn hàng chưa giao thành công
+   * Chỉ bao gồm ID, trackingNumber, orderStatus
+   */
+  async exportPendingDelivery(): Promise<{
+    headers: string[];
+    data: any[];
+    fileName: string;
+    totalRecords: number;
+  }> {
+    // Lấy tất cả đơn hàng có trạng thái không phải "Đã giao hàng" hoặc "Giao thành công"
+    const successStatuses = ['Đã giao hàng', 'Giao thành công', 'Đã giao thành công'];
+    
+    const pendingOrders = await this.model
+      .find({
+        $or: [
+          { orderStatus: { $nin: successStatuses } },
+          { orderStatus: { $exists: false } },
+          { orderStatus: null },
+          { orderStatus: '' }
+        ]
+      })
+      .select('_id trackingNumber orderStatus createdAt customerName')
+      .sort({ createdAt: -1 })
+      .exec();
+
+    // Format dữ liệu cho export
+    const exportData = pendingOrders.map(order => ({
+      '_id': order._id.toString(),
+      'trackingNumber': order.trackingNumber || '',
+      'orderStatus': order.orderStatus || 'Chưa có mã vận đơn',
+      'customerName': order.customerName || '',
+      'createdAt': order.createdAt?.toISOString().split('T')[0] || ''
+    }));
+
+    return {
+      headers: ['_id', 'trackingNumber', 'orderStatus', 'customerName', 'createdAt'],
+      data: exportData,
+      fileName: `don-hang-chua-giao-thanh-cong-${new Date().toISOString().split('T')[0]}.csv`,
+      totalRecords: pendingOrders.length
+    };
+  }
+
   private async parseCsvFile(buffer: Buffer): Promise<any[]> {
     return new Promise((resolve, reject) => {
       const results: any[] = [];
@@ -382,5 +567,57 @@ export class TestOrder2Service {
     };
 
     await this.create(createData as CreateTestOrder2Dto);
+  }
+
+  /**
+   * Xử lý cập nhật trạng thái giao hàng đơn giản chỉ với 3 trường
+   */
+  private async processDeliveryStatusUpdate(record: any, rowNumber: number): Promise<void> {
+    try {
+      if (!record._id || !record._id.trim()) {
+        throw new Error(`Thiếu _id để xác định đơn hàng cần cập nhật`);
+      }
+
+      if (!record.orderStatus || !record.orderStatus.trim()) {
+        throw new Error(`Thiếu orderStatus để cập nhật`);
+      }
+
+      const id = record._id.trim();
+      const updateData: any = {
+        orderStatus: record.orderStatus.toString().trim()
+      };
+
+      // Chỉ cập nhật trackingNumber nếu có giá trị
+      if (record.trackingNumber && record.trackingNumber.toString().trim()) {
+        updateData.trackingNumber = record.trackingNumber.toString().trim();
+      }
+
+      const doc = await this.model.findByIdAndUpdate(id, updateData, { new: true }).exec();
+      if (!doc) {
+        throw new Error(`Không tìm thấy đơn hàng với ID: ${id}`);
+      }
+
+      // Trigger sync như các update khác
+      const agentId = String(doc.agentId);
+      if (agentId) {
+        this.googleSync.scheduleAgentSync(agentId);
+      }
+
+      // Trigger sync Summary4 và Summary5
+      this.summary4Sync.syncFromTestOrder2().catch(err => {
+        console.error('Failed to sync Summary4 after delivery update:', err);
+      });
+
+      try {
+        const d = new Date(doc.createdAt);
+        const startDate = new Date(d); startDate.setHours(0,0,0,0);
+        const endDate = new Date(d); endDate.setHours(23,59,59,999);
+        await this.summary5Service.sync({ startDate: startDate.toISOString(), endDate: endDate.toISOString() });
+      } catch (e) {
+        console.warn('Failed to sync Summary5 after delivery update:', e?.message || e);
+      }
+    } catch (error) {
+      throw new Error(`Dòng ${rowNumber}: ${error.message}`);
+    }
   }
 }

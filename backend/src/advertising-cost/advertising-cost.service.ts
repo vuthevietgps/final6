@@ -66,4 +66,39 @@ export class AdvertisingCostService {
     ]);
     return agg[0] || { totalSpent: 0, count: 0, avgCPM: 0, avgCPC: 0 };
   }
+
+  // Lấy chi phí ngày hôm qua cho advertising-cost-suggestion
+  async getYesterdaySpentByAdGroups(): Promise<{ [adGroupId: string]: number }> {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(0, 0, 0, 0);
+    
+    const endOfYesterday = new Date(yesterday);
+    endOfYesterday.setHours(23, 59, 59, 999);
+
+    console.log(`Querying advertising costs for yesterday: ${yesterday.toISOString()} to ${endOfYesterday.toISOString()}`);
+
+    const results = await this.model
+      .find({
+        date: {
+          $gte: yesterday,
+          $lte: endOfYesterday
+        }
+      })
+      .select('adGroupId spentAmount date')
+      .lean()
+      .exec();
+
+    console.log(`Found ${results.length} advertising cost records for yesterday`);
+
+    // Convert to map for easy lookup - default 0 if no data
+    const spentMap: { [adGroupId: string]: number } = {};
+    results.forEach(result => {
+      const spentAmount = result.spentAmount || 0;
+      spentMap[result.adGroupId] = spentAmount;
+      console.log(`AdGroup ${result.adGroupId}: spent ${spentAmount} on ${result.date}`);
+    });
+
+    return spentMap;
+  }
 }

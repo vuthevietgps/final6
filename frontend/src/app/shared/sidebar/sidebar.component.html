@@ -1,7 +1,10 @@
-<nav class="sidebar">
+<nav class="sidebar" [class.collapsed]="isCollapsed">
   <div class="sidebar-header">
-    <h3>Hệ Thống Quản Lý</h3>
-    <div class="auth-actions">
+    <h3 *ngIf="!isCollapsed">Hệ Thống Quản Lý</h3>
+    <button class="collapse-toggle" (click)="toggleCollapse()" [title]="isCollapsed ? 'Mở rộng' : 'Thu gọn'">
+      {{ isCollapsed ? '>>' : '<<' }}
+    </button>
+    <div class="auth-actions" *ngIf="!isCollapsed">
       <button *ngIf="authService.isAuthenticated(); else loginBtn" (click)="authService.logout()" class="btn btn-sm">Đăng xuất</button>
       <ng-template #loginBtn>
         <a routerLink="/login" class="btn btn-sm">Đăng nhập</a>
@@ -16,13 +19,14 @@
       <a *ngIf="!item.children?.length"
          class="menu-link link-content"
          [routerLink]="item.route"
-         routerLinkActive="active">
+         routerLinkActive="active"
+         [title]="isCollapsed ? item.label : ''">
         <span class="icon">{{ item.icon }}</span>
-        <span class="label">{{ item.label }}</span>
+        <span class="label" *ngIf="!isCollapsed">{{ item.label }}</span>
       </a>
 
       <!-- Mục có submenu: click để mở rộng/thu gọn -->
-      <div *ngIf="item.children?.length"
+      <div *ngIf="item.children?.length && !isCollapsed"
            class="menu-link has-children"
            (click)="toggleExpanded(item.route)">
         <div class="link-content expandable">
@@ -34,7 +38,14 @@
         </div>
       </div>
 
-      <ul *ngIf="item.children?.length && isExpanded(item.route)" class="submenu">
+      <!-- Collapsed menu with children: show only icon -->
+      <div *ngIf="item.children?.length && isCollapsed"
+           class="menu-link collapsed-parent"
+           [title]="item.label">
+        <span class="icon">{{ item.icon }}</span>
+      </div>
+
+      <ul *ngIf="item.children?.length && isExpanded(item.route) && !isCollapsed" class="submenu">
         <ng-container *ngFor="let child of item.children">
         <li class="submenu-item" *ngIf="canShow(child)">
           <a [routerLink]="child.route"

@@ -49,6 +49,7 @@ export class ProductComponent implements OnInit {
     maxStock: 100,
     estimatedDeliveryDays: 1,
     status: 'Hoạt động',
+    color: '#3B82F6',
     notes: ''
   });
 
@@ -144,6 +145,7 @@ export class ProductComponent implements OnInit {
       maxStock: 100,
       estimatedDeliveryDays: 1,
       status: 'Hoạt động',
+      color: '#3B82F6',
       notes: ''
     });
     this.isAddModalOpen.set(true);
@@ -165,6 +167,7 @@ export class ProductComponent implements OnInit {
       maxStock: product.maxStock,
       estimatedDeliveryDays: product.estimatedDeliveryDays,
       status: product.status,
+      color: product.color || '#3B82F6',
       notes: product.notes || ''
     });
     this.isEditModalOpen.set(true);

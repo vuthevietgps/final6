@@ -2,13 +2,14 @@
  * Google Sync Controller
  * Quản lý đồng bộ dữ liệu Summary1 với Google Sheets
  */
-import { Controller, Post, Param, Get, Query, Body } from '@nestjs/common';
+import { Controller, Post, Param, Get, Query, Body, Res, HttpStatus } from '@nestjs/common';
 import { GoogleSyncService } from './google-sync.service';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Summary1, Summary1Document } from './schemas/summary1.schema';
 import { User, UserDocument } from '../user/user.schema';
 import { Product, ProductDocument } from '../product/schemas/product.schema';
+import { Response } from 'express';
 
 @Controller('google-sync')
 export class GoogleSyncController {
@@ -246,6 +247,330 @@ export class GoogleSyncController {
       .sort({ fullName: 1 })
       .lean();
     return { count: users.length, users };
+  }
+
+  /** Export Summary1 template với _id, customerName, manualPayment */
+  @Get('summary/export-template')
+  async exportSummaryTemplate(
+    @Query('agentId') agentId?: string,
+    @Query('productId') productId?: string,
+    @Query('productionStatus') productionStatus?: string,
+    @Query('orderStatus') orderStatus?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: string,
+    @Query('q') q?: string,
+    @Query('format') format: 'csv' | 'xlsx' = 'csv',
+    @Res() res?: Response
+  ) {
+    const filter: any = {};
+
+    // Áp dụng tất cả filter tương tự như getSummaryWithFilter
+    if (agentId) {
+      filter.agentId = new Types.ObjectId(agentId);
+    }
+    if (productId) {
+      filter.productId = new Types.ObjectId(productId);
+    }
+    if (productionStatus) {
+      filter.productionStatus = { $regex: productionStatus, $options: 'i' };
+    }
+    if (orderStatus) {
+      filter.orderStatus = { $regex: orderStatus, $options: 'i' };
+    }
+    if (fromDate || toDate) {
+      filter.createdAt = {};
+      if (fromDate) {
+        filter.createdAt.$gte = new Date(fromDate);
+      }
+      if (toDate) {
+        const endDate = new Date(toDate);
+        endDate.setHours(23, 59, 59, 999);
+        filter.createdAt.$lte = endDate;
+      }
+    }
+    if (q) {
+      filter.$or = [
+        { customerName: { $regex: q, $options: 'i' } },
+        { trackingNumber: { $regex: q, $options: 'i' } },
+        { product: { $regex: q, $options: 'i' } }
+      ];
+    }
+
+    // Sorting
+    const sort: any = {};
+    if (sortBy) {
+      sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+    } else {
+      sort.createdAt = -1;
+    }
+
+    // Lấy dữ liệu Summary1
+    const rows = await this.summaryModel
+      .find(filter)
+      .populate('agentId', 'fullName')
+      .sort(sort)
+      .lean();
+
+    if (format === 'xlsx') {
+      const XLSX = await import('xlsx');
+      const data = [
+        ['ID', 'Tên khách hàng', 'Thanh toán thủ công', 'Đại lý'], // Header
+        ...rows.map((r: any) => [
+          String(r._id),
+          r.customerName || '',
+          r.manualPayment || 0,
+          (r.agentId as any)?.fullName || ''
+        ])
+      ];
+      
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      XLSX.utils.book_append_sheet(wb, ws, 'Summary1 Template');
+      
+      const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+      const filename = `summary1_template_${new Date().toISOString().split('T')[0]}.xlsx`;
+      
+      if (res) {
+        res.set({
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'Content-Disposition': `attachment; filename="${filename}"`
+        });
+        res.send(buffer);
+        return;
+      }
+      return buffer;
+    } else {
+      // CSV format with UTF-8 BOM
+      let csv = '\uFEFF'; // UTF-8 BOM
+      csv += 'ID,Tên khách hàng,Thanh toán thủ công,Đại lý\n';
+      
+      for (const row of rows) {
+        const agentName = (row.agentId as any)?.fullName || '';
+        csv += `"${String(row._id)}","${(row.customerName || '').replace(/"/g, '""')}","${row.manualPayment || 0}","${agentName.replace(/"/g, '""')}"\n`;
+      }
+      
+      const buffer = Buffer.from(csv, 'utf8');
+      const filename = `summary1_template_${new Date().toISOString().split('T')[0]}.csv`;
+      
+      if (res) {
+        res.set({
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="${filename}"`
+        });
+        res.send(buffer);
+        return;
+      }
+      return buffer;
+    }
+  }
+
+  /** Export các bản ghi Summary1 chưa thanh toán (manualPayment = 0) */
+  @Get('summary/export-unpaid')
+  async exportUnpaidSummary(
+    @Query('agentId') agentId?: string,
+    @Query('productId') productId?: string,
+    @Query('productionStatus') productionStatus?: string,
+    @Query('orderStatus') orderStatus?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: string,
+    @Query('q') q?: string,
+    @Query('format') format: 'csv' | 'xlsx' = 'csv',
+    @Res() res?: Response
+  ) {
+    const filter: any = {
+      $and: [
+        {
+          $or: [
+            { manualPayment: 0 },
+            { manualPayment: { $exists: false } },
+            { manualPayment: null }
+          ]
+        }
+      ]
+    };
+    
+    // Áp dụng tất cả filter khác
+    const additionalFilters: any = {};
+    if (agentId) {
+      additionalFilters.agentId = new Types.ObjectId(agentId);
+    }
+    if (productId) {
+      additionalFilters.productId = new Types.ObjectId(productId);
+    }
+    if (productionStatus) {
+      additionalFilters.productionStatus = { $regex: productionStatus, $options: 'i' };
+    }
+    if (orderStatus) {
+      additionalFilters.orderStatus = { $regex: orderStatus, $options: 'i' };
+    }
+    if (fromDate || toDate) {
+      additionalFilters.createdAt = {};
+      if (fromDate) {
+        additionalFilters.createdAt.$gte = new Date(fromDate);
+      }
+      if (toDate) {
+        const endDate = new Date(toDate);
+        endDate.setHours(23, 59, 59, 999);
+        additionalFilters.createdAt.$lte = endDate;
+      }
+    }
+    if (q) {
+      additionalFilters.$or = [
+        { customerName: { $regex: q, $options: 'i' } },
+        { trackingNumber: { $regex: q, $options: 'i' } },
+        { product: { $regex: q, $options: 'i' } }
+      ];
+    }
+
+    // Combine filters
+    if (Object.keys(additionalFilters).length > 0) {
+      filter.$and.push(additionalFilters);
+    }
+
+    // Sorting
+    const sort: any = {};
+    if (sortBy) {
+      sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+    } else {
+      sort.createdAt = -1;
+    }
+
+    // Lấy dữ liệu Summary1 chưa thanh toán
+    const rows = await this.summaryModel
+      .find(filter)
+      .populate('agentId', 'fullName')
+      .sort(sort)
+      .lean();
+
+    if (format === 'xlsx') {
+      const XLSX = await import('xlsx');
+      const data = [
+        ['ID', 'Tên khách hàng', 'Thanh toán thủ công', 'Đại lý', 'Cần thanh toán'], // Header
+        ...rows.map((r: any) => [
+          String(r._id),
+          r.customerName || '',
+          r.manualPayment || 0,
+          (r.agentId as any)?.fullName || '',
+          r.needToPay || 0
+        ])
+      ];
+      
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      XLSX.utils.book_append_sheet(wb, ws, 'Summary1 Chưa Thanh Toán');
+      
+      const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+      const filename = `summary1_chua_thanh_toan_${new Date().toISOString().split('T')[0]}.xlsx`;
+      
+      if (res) {
+        res.set({
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'Content-Disposition': `attachment; filename="${filename}"`
+        });
+        res.send(buffer);
+        return;
+      }
+      return buffer;
+    } else {
+      // CSV format with UTF-8 BOM
+      let csv = '\uFEFF'; // UTF-8 BOM
+      csv += 'ID,Tên khách hàng,Thanh toán thủ công,Đại lý,Cần thanh toán\n';
+      
+      for (const row of rows) {
+        const agentName = (row.agentId as any)?.fullName || '';
+        csv += `"${String(row._id)}","${(row.customerName || '').replace(/"/g, '""')}","${row.manualPayment || 0}","${agentName.replace(/"/g, '""')}","${row.needToPay || 0}"\n`;
+      }
+      
+      const buffer = Buffer.from(csv, 'utf8');
+      const filename = `summary1_chua_thanh_toan_${new Date().toISOString().split('T')[0]}.csv`;
+      
+      if (res) {
+        res.set({
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="${filename}"`
+        });
+        res.send(buffer);
+        return;
+      }
+      return buffer;
+    }
+  }
+
+  /** Import Summary1 template để cập nhật customerName và manualPayment theo _id */
+  @Post('summary/import-template')
+  async importSummaryTemplate(@Body() body: { 
+    data: Array<{ id: string; customerName?: string; manualPayment?: number }> 
+  }) {
+    const { data } = body;
+    
+    if (!data || !Array.isArray(data)) {
+      throw new Error('Invalid data format');
+    }
+
+    const results = {
+      total: data.length,
+      success: 0,
+      failed: 0,
+      errors: [] as string[]
+    };
+
+    for (const item of data) {
+      try {
+        const { id, customerName, manualPayment } = item;
+        
+        if (!id) {
+          results.failed++;
+          results.errors.push('Missing ID');
+          continue;
+        }
+
+        // Tìm record Summary1
+        const existing = await this.summaryModel.findById(id).lean();
+        if (!existing) {
+          results.failed++;
+          results.errors.push(`Summary1 not found: ${id}`);
+          continue;
+        }
+
+        // Chuẩn bị update object
+        const updateData: any = {};
+        if (customerName !== undefined) {
+          updateData.customerName = customerName;
+        }
+        if (manualPayment !== undefined) {
+          updateData.manualPayment = Number(manualPayment || 0);
+          
+          // Tính lại needToPay
+          const paid = Number(existing.paid || 0);
+          const mustPay = Number(existing.mustPay || 0);
+          updateData.needToPay = paid - mustPay - updateData.manualPayment;
+        }
+
+        // Cập nhật nếu có dữ liệu
+        if (Object.keys(updateData).length > 0) {
+          await this.summaryModel.findByIdAndUpdate(id, { $set: updateData });
+          
+          // Schedule push to Google Sheet
+          const agentId = String(existing.agentId);
+          this.svc.schedulePushOnly(agentId, 2000);
+          
+          results.success++;
+        } else {
+          results.failed++;
+          results.errors.push(`No data to update for ID: ${id}`);
+        }
+
+      } catch (error: any) {
+        results.failed++;
+        results.errors.push(`Error processing ${item.id}: ${error.message}`);
+      }
+    }
+
+    return results;
   }
 
   /** Cập nhật manualPayment cho một dòng Summary1 và tính lại needToPay */

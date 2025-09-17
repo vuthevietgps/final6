@@ -4,6 +4,7 @@
  */
 import { Component, OnInit, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ProductService } from '../product/product.service';
 import { AdGroupService } from '../ad-group/ad-group.service';
 
@@ -12,12 +13,13 @@ interface Row {
   productName: string;
   active: number;
   inactive: number;
+  standardQuantity: number;
 }
 
 @Component({
   selector: 'app-ad-group-counts',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './ad-group-counts.component.html',
   styleUrls: ['./ad-group-counts.component.css']
 })
@@ -53,6 +55,7 @@ export class AdGroupCountsComponent implements OnInit {
               productName: p.name,
               active: map[p._id]?.active || 0,
               inactive: map[p._id]?.inactive || 0,
+              standardQuantity: 9, // Default standard quantity
             }));
             this.rows.set(rows);
             this.isLoading.set(false);
@@ -66,5 +69,25 @@ export class AdGroupCountsComponent implements OnInit {
 
   refresh(): void {
     this.load();
+  }
+
+  updateStandardQuantity(index: number, value: string): void {
+    const num = parseInt(value || '0', 10);
+    if (!isNaN(num) && num >= 0) {
+      const currentRows = this.rows();
+      currentRows[index].standardQuantity = num;
+      this.rows.set([...currentRows]);
+    }
+  }
+
+  getSuggestion(row: Row): number {
+    return row.standardQuantity - row.active;
+  }
+
+  getSuggestionClass(row: Row): string {
+    const suggestion = this.getSuggestion(row);
+    if (suggestion < 6) return 'suggestion-red';
+    if (suggestion >= 6 && suggestion <= 9) return 'suggestion-yellow';
+    return 'suggestion-green';
   }
 }

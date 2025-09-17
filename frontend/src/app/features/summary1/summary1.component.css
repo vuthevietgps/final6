@@ -177,6 +177,21 @@
   background: #545b62;
 }
 
+/* Template actions styling */
+.template-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.template-actions .btn {
+  padding: 8px 12px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .btn-warning {
   background: #ffc107;
   color: #212529;
@@ -185,6 +200,16 @@
 
 .btn-warning:hover {
   background: #e0a800;
+}
+
+.btn-info {
+  background: #17a2b8;
+  color: white;
+  border-color: #17a2b8;
+}
+
+.btn-info:hover {
+  background: #138496;
 }
 
 .btn-sm {

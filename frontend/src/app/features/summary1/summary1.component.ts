@@ -279,6 +279,201 @@ export class Summary1Component implements OnInit {
     });
   }
 
+  // Template Export/Import Methods
+  exportTemplate() {
+    const currentFilter = this.filter();
+    let url = 'http://localhost:3000/google-sync/summary/export-template?format=csv';
+    
+    // Thêm tất cả filter params vào URL
+    this.addFilterParamsToUrl(url, currentFilter).then(fullUrl => {
+      this.http.get(fullUrl, { responseType: 'blob', observe: 'response' })
+        .subscribe({
+          next: (response) => {
+            const blob = response.body;
+            if (!blob) return;
+            
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = 'summary1_template.csv';
+            if (contentDisposition) {
+              const matches = /filename="?([^"]*)"?/.exec(contentDisposition);
+              if (matches && matches[1]) filename = matches[1];
+            }
+            
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+          },
+          error: (e) => {
+            console.error('Export template failed:', e);
+            alert('Lỗi tải template: ' + (e.error?.message || e.message));
+          }
+        });
+    });
+  }
+
+  exportUnpaid() {
+    const currentFilter = this.filter();
+    let url = 'http://localhost:3000/google-sync/summary/export-unpaid?format=csv';
+    
+    // Thêm tất cả filter params vào URL
+    this.addFilterParamsToUrl(url, currentFilter).then(fullUrl => {
+      this.http.get(fullUrl, { responseType: 'blob', observe: 'response' })
+        .subscribe({
+          next: (response) => {
+            const blob = response.body;
+            if (!blob) return;
+            
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = 'summary1_chua_thanh_toan.csv';
+            if (contentDisposition) {
+              const matches = /filename="?([^"]*)"?/.exec(contentDisposition);
+              if (matches && matches[1]) filename = matches[1];
+            }
+            
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+          },
+          error: (e) => {
+            console.error('Export unpaid failed:', e);
+            alert('Lỗi tải danh sách chưa thanh toán: ' + (e.error?.message || e.message));
+          }
+        });
+    });
+  }
+
+  private async addFilterParamsToUrl(baseUrl: string, filter: any): Promise<string> {
+    const params = new URLSearchParams();
+    
+    if (filter.agentId) params.append('agentId', filter.agentId);
+    if (filter.productId) params.append('productId', filter.productId);
+    if (filter.productionStatus) params.append('productionStatus', filter.productionStatus);
+    if (filter.orderStatus) params.append('orderStatus', filter.orderStatus);
+    if (filter.fromDate) params.append('fromDate', filter.fromDate);
+    if (filter.toDate) params.append('toDate', filter.toDate);
+    if (filter.sortBy) params.append('sortBy', filter.sortBy);
+    if (filter.sortOrder) params.append('sortOrder', filter.sortOrder);
+    
+    // Thêm search query nếu có
+    const searchQ = this.q().trim();
+    if (searchQ) params.append('q', searchQ);
+    
+    const queryString = params.toString();
+    return queryString ? `${baseUrl}&${queryString}` : baseUrl;
+  }
+
+  onTemplateFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      this.parseAndImportTemplate(content, file.name);
+    };
+    reader.readAsText(file, 'utf-8');
+    
+    // Reset input
+    input.value = '';
+  }
+
+  private parseAndImportTemplate(content: string, filename: string) {
+    try {
+      // Parse CSV content
+      const lines = content.split('\n').filter(line => line.trim());
+      if (lines.length < 2) {
+        alert('File template không hợp lệ (ít nhất 2 dòng)');
+        return;
+      }
+      
+      // Skip header line, parse data lines
+      const data = [];
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        // Simple CSV parsing - handle quoted fields
+        const fields = this.parseCSVLine(line);
+        if (fields.length >= 3) {
+          const id = fields[0];
+          const customerName = fields[1];
+          const manualPayment = parseFloat(fields[2]) || 0;
+          
+          if (id) {
+            data.push({ id, customerName, manualPayment });
+          }
+        }
+      }
+      
+      if (data.length === 0) {
+        alert('Không tìm thấy dữ liệu hợp lệ trong file');
+        return;
+      }
+      
+      // Confirm import
+      if (!confirm(`Sẽ import ${data.length} dòng dữ liệu. Tiếp tục?`)) return;
+      
+      // Send import request
+      this.http.post('http://localhost:3000/google-sync/summary/import-template', { data })
+        .subscribe({
+          next: (result: any) => {
+            alert(`Import hoàn thành:\n- Thành công: ${result.success}\n- Thất bại: ${result.failed}\n${result.errors.length > 0 ? '- Lỗi: ' + result.errors.slice(0, 3).join(', ') : ''}`);
+            this.refresh(); // Reload data
+          },
+          error: (e) => {
+            console.error('Import template failed:', e);
+            alert('Lỗi import: ' + (e.error?.message || e.message));
+          }
+        });
+      
+    } catch (error) {
+      console.error('Parse template failed:', error);
+      alert('Lỗi đọc file template');
+    }
+  }
+
+  private parseCSVLine(line: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          // Escaped quote
+          current += '"';
+          i++; // Skip next quote
+        } else {
+          // Toggle quote state
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        // Field separator
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    
+    // Add last field
+    result.push(current.trim());
+    return result;
+  }
+
   // Helpers hiển thị tên sản phẩm và đại lý
   displayProduct(r: Summary1Row): string {
     const p: any = (r as any).productId;

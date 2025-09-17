@@ -8,6 +8,20 @@
         {{ showFilters() ? '🔼 Ẩn Filter' : '🔽 Hiện Filter' }}
       </button>
       <button class="btn btn-primary" (click)="refresh()">🔄 Làm mới</button>
+      
+      <!-- Template Actions -->
+      <div class="template-actions">
+        <button class="btn btn-success" (click)="exportTemplate()" [disabled]="isLoading()">
+          📥 Tải Template
+        </button>
+        <button class="btn btn-info" (click)="exportUnpaid()" [disabled]="isLoading()">
+          💸 Chưa thanh toán
+        </button>
+        <label class="btn btn-warning" style="margin: 0;">
+          📤 Import Template
+          <input type="file" accept=".csv,.xlsx" (change)="onTemplateFileSelected($event)" style="display: none;" />
+        </label>
+      </div>
     </div>
 
     <!-- Advanced Filters -->

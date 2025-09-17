@@ -13,6 +13,7 @@ export interface Product {
   maxStock: number;
   estimatedDeliveryDays: number;
   status: 'Hoạt động' | 'Tạm dừng';
+  color: string;
   notes?: string;
   sku: string;
   totalCost: number;
@@ -38,6 +39,7 @@ export interface CreateProductDto {
   maxStock: number;
   estimatedDeliveryDays?: number;
   status?: 'Hoạt động' | 'Tạm dừng';
+  color?: string;
   notes?: string;
 }
 

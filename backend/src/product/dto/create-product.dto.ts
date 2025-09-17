@@ -9,7 +9,8 @@ import {
   IsNumber, 
   Min, 
   IsEnum,
-  IsMongoId 
+  IsMongoId,
+  Matches 
 } from 'class-validator';
 import { Types } from 'mongoose';
 
@@ -52,6 +53,12 @@ export class CreateProductDto {
   @IsOptional()
   @IsEnum(['Hoạt động', 'Tạm dừng'])
   status?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^#[0-9A-F]{6}$/i, { message: 'Color must be a valid hex color (e.g., #FF0000)' })
+  color?: string;
 
   @IsOptional()
   @IsString()

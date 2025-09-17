@@ -40,6 +40,13 @@ export class Product {
   })
   status: string; // Trạng thái
 
+  @Prop({ 
+    type: String, 
+    default: '#3B82F6',
+    match: /^#[0-9A-F]{6}$/i 
+  })
+  color: string; // Màu sắc sản phẩm (hex color)
+
   @Prop({ trim: true })
   notes: string; // Lưu ý
 

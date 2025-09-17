@@ -108,6 +108,7 @@ export class GoogleSyncService {
         productionStatus: o.productionStatus,
         orderStatus: o.orderStatus,
         trackingNumber: o.trackingNumber || '',
+        submitLink: o.submitLink || '',
         codAmount: o.codAmount || 0,
         quotePrice,
         mustPay,
@@ -224,6 +225,7 @@ export class GoogleSyncService {
               productionStatus: r.productionStatus,
               orderStatus: r.orderStatus,
               trackingNumber: r.trackingNumber,
+              submitLink: r.submitLink,
               codAmount: r.codAmount,
               quotePrice: r.quotePrice,
               mustPay: r.mustPay,
@@ -266,7 +268,7 @@ export class GoogleSyncService {
       // Lưu ý: KHÔNG ghi header; chỉ ghi dữ liệu từ hàng A3 trở xuống theo yêu cầu
       const header = [
   'date', 'product', 'customerName', 'quantity', 'productionStatus', 'orderStatus',
-  'trackingNumber', 'codAmount', 'đặt cọc', 'quotePrice', 'mustPay', 'paid', 'manualPayment', 'needToPay'
+  'trackingNumber', 'submitLink', 'codAmount', 'đặt cọc', 'quotePrice', 'mustPay', 'paid', 'manualPayment', 'needToPay'
       ];
       const fmtDate = (d: any) => {
         try {
@@ -286,6 +288,7 @@ export class GoogleSyncService {
         r.productionStatus || '',
         r.orderStatus || '',
         r.trackingNumber || '',
+        r.submitLink || '',
         r.codAmount ?? 0,
         '', // đặt cọc - chưa có trong schema, để trống
         r.quotePrice ?? 0,

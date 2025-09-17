@@ -101,6 +101,12 @@ export const routes: Routes = [
     data: { permissions: ['ad-groups'] }
   },
   {
+    path: 'advertising-cost-suggestion',
+    loadComponent: () => import('./features/advertising-cost-suggestion/advertising-cost-suggestion.component').then(m => m.AdvertisingCostSuggestionComponent),
+    canActivate: [AuthGuard],
+    data: { permissions: ['advertising-costs'] }
+  },
+  {
     path: 'costs',
     children: [
       { path: 'advertising2', loadComponent: () => import('./features/advertising-cost2/advertising-cost2.component').then(m => m.AdvertisingCost2Component), canActivate: [AuthGuard], data: { permissions: ['advertising-costs'] } },

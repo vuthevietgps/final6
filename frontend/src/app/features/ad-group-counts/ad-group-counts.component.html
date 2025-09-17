@@ -1,7 +1,7 @@
 <div class="ad-group-counts-page">
   <div class="toolbar">
     <div class="left">
-      <h2>📊 Số Lượng Nhóm Quảng Cáo</h2>
+      <h2>📊 Đề xuất SL nhóm quảng cáo theo SP</h2>
     </div>
     <div class="right">
       <span class="chip chip-active">Đang hoạt động: {{ totalActive() }}</span>
@@ -17,10 +17,12 @@
           <th class="col-product">Sản phẩm</th>
           <th class="col-number center">Đang hoạt động</th>
           <th class="col-number center">Tạm dừng</th>
+          <th class="col-number center">Số lượng tiêu chuẩn</th>
+          <th class="col-number center">Đề xuất</th>
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let r of rows()" class="row-item">
+        <tr *ngFor="let r of rows(); let i = index" class="row-item">
           <td>
             <div class="product-cell">
               <div class="title">{{ r.productName }}</div>
@@ -28,9 +30,21 @@
           </td>
           <td class="center"><span class="badge badge-active">{{ r.active }}</span></td>
           <td class="center"><span class="badge badge-inactive">{{ r.inactive }}</span></td>
+          <td class="center">
+            <input 
+              type="number" 
+              class="standard-input"
+              [(ngModel)]="r.standardQuantity"
+              (input)="updateStandardQuantity(i, $any($event.target).value)"
+              min="0"
+              max="99">
+          </td>
+          <td class="center">
+            <span class="suggestion-badge" [class]="getSuggestionClass(r)">{{ getSuggestion(r) }}</span>
+          </td>
         </tr>
         <tr *ngIf="rows().length===0">
-          <td class="center muted" colspan="3">Không có dữ liệu</td>
+          <td class="center muted" colspan="5">Không có dữ liệu</td>
         </tr>
       </tbody>
     </table>

@@ -21,6 +21,8 @@ import { AdGroupProfitReportModule } from './ad-group-profit-report/ad-group-pro
 import { AdGroupProfitModule } from './ad-group-profit/ad-group-profit.module';
 import { AdGroupModule } from './ad-group/ad-group.module';
 import { AdvertisingCostModule } from './advertising-cost/advertising-cost.module';
+import { AdvertisingCostPublicModule } from './advertising-cost-public/advertising-cost-public.module';
+import { AdvertisingCostSuggestionModule } from './advertising-cost-suggestion/advertising-cost-suggestion.module';
 import { AuthModule } from './auth/auth.module';
 import { DeliveryStatusModule } from './delivery-status/delivery-status.module';
 import { ExportUserModule } from './export-user/export-user.module';
@@ -109,6 +111,10 @@ import { UserModule } from './user/user.module';
     // Module Đơn Hàng Thử Nghiệm 2
     TestOrder2Module,
     AdvertisingCostModule,
+    // Module Public API cho Advertising Cost (không cần authentication)
+    AdvertisingCostPublicModule,
+    // Module Đề Xuất Chi Phí Quảng Cáo
+    AdvertisingCostSuggestionModule,
     SalaryConfigModule,
     Summary2Module,
   Summary4Module,

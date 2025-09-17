@@ -1,6 +1,6 @@
 export interface TestOrder2 {
   _id: string;
-  productId: { _id: string; name?: string } | string;
+  productId: { _id: string; name?: string; color?: string } | string;
   customerName: string;
   quantity: number;
   agentId: { _id: string; name?: string; fullName?: string } | string;
@@ -24,4 +24,4 @@ export interface TestOrder2 {
 export type CreateTestOrder2 = Omit<TestOrder2, '_id' | 'createdAt' | 'updatedAt'>;
 export type UpdateTestOrder2 = Partial<CreateTestOrder2>;
 
-export interface NamedItem { _id: string; name: string; }
+export interface NamedItem { _id: string; name: string; color?: string; }

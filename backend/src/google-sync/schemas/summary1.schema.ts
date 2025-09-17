@@ -30,6 +30,9 @@ export class Summary1 {
   @Prop({ type: String })
   trackingNumber?: string;
 
+  @Prop({ type: String })
+  submitLink?: string;
+
   @Prop({ type: Number, default: 0 })
   codAmount: number;
 

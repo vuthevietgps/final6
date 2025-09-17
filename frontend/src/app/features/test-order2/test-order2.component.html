@@ -6,6 +6,8 @@
       <button class="btn btn-success" (click)="downloadCSV()" aria-label="Tải CSV">📥 Tải CSV</button>
       <button class="btn btn-warning" (click)="openUploadModal()" aria-label="Tải lên & Cập nhật">📤 Tải lên & Cập
         nhật</button>
+      <button class="btn btn-info" (click)="openDeliveryModal()" aria-label="Cập nhật Trạng thái Giao hàng">🚚 Cập nhật TT Giao hàng</button>
+      <button class="btn btn-danger" (click)="downloadPendingDelivery()" aria-label="Tải xuống đơn chưa giao thành công">❌ Chưa Giao Thành Công</button>
     </div>
     <div class="stats">
       <span class="badge">Tổng: {{ stats().total }}</span>
@@ -16,38 +18,38 @@
 
   <div class="filters-grid">
     <input class="input" type="text" placeholder="Tìm KH/SĐT/mã vận đơn" [ngModel]="q()"
-      (ngModelChange)="q.set($event)" />
-    <select class="select" [ngModel]="selectedProduct()" (ngModelChange)="selectedProduct.set($event)">
+      (ngModelChange)="onFilterChange('q', $event)" />
+    <select class="select" [ngModel]="selectedProduct()" (ngModelChange)="onFilterChange('product', $event)">
       <option value="all">Sản phẩm: Tất cả</option>
       <option *ngFor="let p of products()" [value]="p._id">{{ p.name }}</option>
     </select>
-    <select class="select" [ngModel]="selectedAgent()" (ngModelChange)="selectedAgent.set($event)">
+    <select class="select" [ngModel]="selectedAgent()" (ngModelChange)="onFilterChange('agent', $event)">
       <option value="all">Đại lý: Tất cả</option>
       <option *ngFor="let a of agents()" [value]="a._id">{{ a.name }}</option>
     </select>
-    <select class="select" [ngModel]="selectedAdGroup()" (ngModelChange)="selectedAdGroup.set($event)">
+    <select class="select" [ngModel]="selectedAdGroup()" (ngModelChange)="onFilterChange('adGroup', $event)">
       <option value="all">ID Nhóm QC: Tất cả</option>
       <option *ngFor="let g of adGroups()" [value]="g._id">{{ g._id }}</option>
     </select>
 
     <select class="select status-select" [ngModel]="selectedProductionStatus()"
-      (ngModelChange)="selectedProductionStatus.set($event)">
+      (ngModelChange)="onFilterChange('productionStatus', $event)">
       <option value="all">TT Sản xuất: Tất cả</option>
       <option *ngFor="let s of productionStatuses()" [value]="s" [ngStyle]="getStatusOptionStyle('prod', s)">{{ s }}
       </option>
     </select>
     <select class="select status-select" [ngModel]="selectedOrderStatus()"
-      (ngModelChange)="selectedOrderStatus.set($event)">
+      (ngModelChange)="onFilterChange('orderStatus', $event)">
       <option value="all">TT Vận đơn: Tất cả</option>
       <option *ngFor="let s of orderStatuses()" [value]="s" [ngStyle]="getStatusOptionStyle('del', s)">{{ s }}</option>
     </select>
-    <select class="select" [ngModel]="selectedActive()" (ngModelChange)="selectedActive.set($event)">
+    <select class="select" [ngModel]="selectedActive()" (ngModelChange)="onFilterChange('active', $event)">
       <option value="all">Trạng thái: Tất cả</option>
       <option value="true">Đang hoạt động</option>
       <option value="false">Ngừng</option>
     </select>
-    <input class="input date-input" type="date" [ngModel]="from()" (ngModelChange)="from.set($event)" title="Từ ngày" />
-    <input class="input date-input" type="date" [ngModel]="to()" (ngModelChange)="to.set($event)" title="Đến ngày" />
+    <input class="input date-input" type="date" [ngModel]="from()" (ngModelChange)="onFilterChange('from', $event)" title="Từ ngày" />
+    <input class="input date-input" type="date" [ngModel]="to()" (ngModelChange)="onFilterChange('to', $event)" title="Đến ngày" />
     <div class="filter-actions">
       <button class="btn btn-outline" (click)="resetFilters()">↺ Đặt lại</button>
       <button class="btn btn-search" (click)="refresh()">🔍 Tìm kiếm</button>
@@ -69,7 +71,7 @@
           <th class="col-wide">TT Sản xuất</th>
           <th class="w-order-status">TT Vận đơn</th>
           <th class="col-wide">Link nộp</th>
-          <th class="col-wide">Mã vận đơn</th>
+          <th class="col-tracking">Mã vận đơn</th>
           <th class="col-wide">Đặt cọc</th>
           <th class="col-wide">COD</th>
           <th class="col-wider">Người nhận</th>
@@ -79,13 +81,14 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let o of filtered(); trackBy: trackById">
+        <tr *ngFor="let o of orders(); trackBy: trackById">
           <td class="muted col-date sticky-col">{{ formatDate(o.createdAt) }}</td>
           <td class="col-customer sticky-col-2"><input type="text" [ngModel]="o.customerName"
               (blur)="onInputUpdate(o, 'customerName', $event)" /></td>
           <td class="col-product">
-            <select [ngModel]="getId(o.productId)" (change)="onSelectUpdate(o, 'productId', $event)">
-              <option *ngFor="let p of products()" [value]="p._id">{{ p.name }}</option>
+            <select [ngModel]="getId(o.productId)" (change)="onSelectUpdate(o, 'productId', $event)"
+                    [ngStyle]="productSelectStyle(o.productId)" class="status-dropdown">
+              <option *ngFor="let p of products()" [value]="p._id" [ngStyle]="getProductOptionStyle(p._id)">{{ p.name }}</option>
             </select>
           </td>
           <td class="col-qty"><input class="input-qty" type="number" min="1" [ngModel]="o.quantity"
@@ -132,7 +135,7 @@
           </td>
           <td class="center"><button class="btn btn-sm btn-danger" (click)="delete(o)">Xóa</button></td>
         </tr>
-        <tr *ngIf="filtered().length===0">
+        <tr *ngIf="orders().length===0">
           <td class="center muted" colspan="18">Chưa có đơn</td>
         </tr>
       </tbody>
@@ -238,4 +241,136 @@
       </div>
     </div>
   </div>
+
+  <!-- Delivery Status Update Modal -->
+  <div *ngIf="isDeliveryModalOpen()" class="modal-overlay" (click)="closeDeliveryModal()">
+    <div class="modal delivery-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>🚚 Cập nhật Trạng thái Giao hàng</h3>
+        <button class="modal-close" (click)="closeDeliveryModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="upload-section">
+          <h4>1. Tải Template đơn giản (chỉ 3 cột)</h4>
+          <button class="btn btn-secondary" (click)="downloadDeliveryTemplate()">
+            📥 Tải template Excel
+          </button>
+          <p class="help-text">
+            File chỉ có 3 cột: <strong>ID đơn hàng, Mã vận đơn, Trạng thái giao hàng</strong>. 
+            Dễ dàng cập nhật hàng loạt mà không lo lỗi do quá nhiều cột.
+          </p>
+        </div>
+
+        <div class="upload-section">
+          <h4>2. Chọn file để cập nhật trạng thái</h4>
+          <div class="file-drop-zone" (drop)="onDeliveryFileDrop($event)" (dragover)="onDragOver($event)"
+            [class.has-file]="deliveryUploadFile()">
+            <div *ngIf="!deliveryUploadFile(); else deliveryFileSelectedTpl" class="drop-message">
+              <div class="drop-icon">🚚</div>
+              <p>Kéo thả file vào đây hoặc</p>
+              <input type="file" #deliveryFileInput (change)="onDeliveryFileSelected($event)" accept=".csv,.xls,.xlsx"
+                style="display: none;">
+              <button class="btn btn-outline" (click)="deliveryFileInput.click()">
+                Chọn file
+              </button>
+              <p class="file-types">File đơn giản: CSV, Excel (.xls, .xlsx) - Chỉ 3 cột</p>
+            </div>
+
+            <ng-template #deliveryFileSelectedTpl>
+              <div class="file-selected">
+                <div class="file-icon">📄</div>
+                <div class="file-info">
+                  <strong>{{ deliveryUploadFile()?.name }}</strong>
+                  <p>{{ (deliveryUploadFile()?.size || 0) / 1024 / 1024 | number:'1.2-2' }} MB</p>
+                </div>
+                <button class="btn btn-sm btn-danger" (click)="deliveryUploadFile.set(null)">
+                  ✕ Xóa
+                </button>
+              </div>
+            </ng-template>
+          </div>
+        </div>
+
+        <div *ngIf="deliveryUploadResults()" class="upload-results">
+          <h4>📊 Kết quả cập nhật trạng thái</h4>
+          <div class="results-summary">
+            <div class="result-item success">
+              <strong>✅ Đã cập nhật: {{ deliveryUploadResults()?.success || 0 }} đơn hàng</strong>
+            </div>
+            @if (deliveryUploadResults() && deliveryUploadResults()!.errors && deliveryUploadResults()!.errors.length > 0) {
+            <div class="result-item error">
+              <strong>❌ Lỗi: {{ deliveryUploadResults()!.errors.length }}</strong>
+            </div>
+            }
+          </div>
+
+          @if (deliveryUploadResults() && deliveryUploadResults()!.errors && deliveryUploadResults()!.errors.length > 0) {
+          <div class="error-details">
+            <h5>Chi tiết lỗi:</h5>
+            <div class="error-list">
+              @for (err of deliveryUploadResults()!.errors; track err.row) {
+              <div class="error-row">
+                <strong>Dòng {{ err.row }}:</strong> {{ err.error }}
+              </div>
+              }
+            </div>
+          </div>
+          }
+
+          <p class="results-message">{{ deliveryUploadResults()?.message || '' }}</p>
+        </div>
+
+        <div *ngIf="error()" class="error-message">
+          ❌ {{ error() }}
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeDeliveryModal()">
+          Hủy
+        </button>
+        <button class="btn btn-primary" [disabled]="!deliveryUploadFile() || isDeliveryUploading()" (click)="uploadDeliveryStatusFile()">
+          <span *ngIf="isDeliveryUploading()">🔄 Đang cập nhật...</span>
+          <span *ngIf="!isDeliveryUploading()">🚚 Cập nhật Trạng thái</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+<!-- Pagination Controls -->
+<div class="pagination-wrapper" *ngIf="!isLoading() && totalItems() > 0">
+  <div class="pagination-info">
+    Hiển thị {{ (currentPage() - 1) * pageSize() + 1 }} - 
+    {{ Math.min(currentPage() * pageSize(), totalItems()) }} 
+    trong tổng số {{ totalItems() }} kết quả
+  </div>
+  
+  <div class="pagination-controls">
+    <select [ngModel]="pageSize()" (ngModelChange)="changePageSize($event)" class="page-size-select">
+      <option value="10">10/trang</option>
+      <option value="25">25/trang</option>
+      <option value="50">50/trang</option>
+      <option value="100">100/trang</option>
+    </select>
+
+    <button class="btn btn-sm" [disabled]="currentPage() <= 1" (click)="goToPage(1)">
+      ⏮️ Đầu
+    </button>
+    <button class="btn btn-sm" [disabled]="currentPage() <= 1" (click)="goToPage(currentPage() - 1)">
+      ⬅️ Trước
+    </button>
+    
+    <span class="page-info">
+      Trang {{ currentPage() }} / {{ totalPages() }}
+    </span>
+    
+    <button class="btn btn-sm" [disabled]="currentPage() >= totalPages()" (click)="goToPage(currentPage() + 1)">
+      Sau ➡️
+    </button>
+    <button class="btn btn-sm" [disabled]="currentPage() >= totalPages()" (click)="goToPage(totalPages())">
+      Cuối ⏭️
+    </button>
+  </div>
+</div>
 </div>

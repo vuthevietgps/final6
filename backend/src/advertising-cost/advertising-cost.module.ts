@@ -16,5 +16,6 @@ import { AdvertisingCostController } from './advertising-cost.controller';
   ],
   controllers: [AdvertisingCostController],
   providers: [AdvertisingCostService],
+  exports: [AdvertisingCostService] // Export service để dùng ở module khác
 })
 export class AdvertisingCostModule {}
