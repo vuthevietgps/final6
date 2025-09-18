@@ -34,13 +34,13 @@ export class CreateQuoteDto {
   @IsMongoId()
   agentId: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  product: string; // Tên sản phẩm
+  product?: string; // Tên sản phẩm (tùy chọn, sẽ tự động điền theo productId nếu không gửi)
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  agentName: string; // Tên đại lý
+  agentName?: string; // Tên đại lý (tùy chọn, sẽ tự động điền theo agentId nếu không gửi)
 
   @IsNotEmpty()
   @IsNumber()

@@ -26,6 +26,13 @@ export class QuoteController {
         (createQuoteDto as any).expiryDate = new Date(y, m - 1, d).toISOString();
       }
     }
+    // Nếu product hoặc agentName là chuỗi rỗng, bỏ đi để service tự động điền
+    ['product', 'agentName'].forEach((k) => {
+      const v = (createQuoteDto as any)[k];
+      if (v !== undefined && String(v).trim() === '') {
+        delete (createQuoteDto as any)[k];
+      }
+    });
     return this.quoteService.create(createQuoteDto);
   }
 
@@ -81,6 +88,13 @@ export class QuoteController {
         (updateQuoteDto as any).expiryDate = new Date(y, m - 1, d).toISOString();
       }
     }
+    // Bỏ product/agentName nếu là chuỗi rỗng
+    ['product', 'agentName'].forEach((k) => {
+      if ((updateQuoteDto as any)[k] !== undefined) {
+        const v = String((updateQuoteDto as any)[k]).trim();
+        if (!v) delete (updateQuoteDto as any)[k];
+      }
+    });
     return this.quoteService.update(id, updateQuoteDto);
   }
 
