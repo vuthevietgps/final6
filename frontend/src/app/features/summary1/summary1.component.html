@@ -17,9 +17,16 @@
         <button class="btn btn-info" (click)="exportUnpaid()" [disabled]="isLoading()">
           💸 Chưa thanh toán
         </button>
+        <button class="btn btn-primary" (click)="exportManualPaymentTemplate()" [disabled]="isLoading()">
+          💰 Template Thanh Toán (5 cột)
+        </button>
         <label class="btn btn-warning" style="margin: 0;">
           📤 Import Template
           <input type="file" accept=".csv,.xlsx" (change)="onTemplateFileSelected($event)" style="display: none;" />
+        </label>
+        <label class="btn btn-danger" style="margin: 0;">
+          💰 Cập Nhật Thanh Toán
+          <input type="file" accept=".csv,.xlsx" (change)="onManualPaymentFileSelected($event)" style="display: none;" />
         </label>
       </div>
     </div>

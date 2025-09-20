@@ -500,6 +500,193 @@ export class GoogleSyncController {
     }
   }
 
+  /** Export template manual payment với 5 cột: _id, orderId, manualPayment, mustPay, needToPay */
+  @Get('summary/export-manual-payment-template')
+  async exportManualPaymentTemplate(
+    @Query('agentId') agentId?: string,
+    @Query('productId') productId?: string,
+    @Query('productionStatus') productionStatus?: string,
+    @Query('orderStatus') orderStatus?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: string,
+    @Query('q') q?: string,
+    @Query('format') format: 'csv' | 'xlsx' = 'xlsx',
+    @Res() res?: Response
+  ) {
+    const filter: any = {};
+
+    // Áp dụng tất cả filter tương tự như getSummaryWithFilter
+    if (agentId) {
+      filter.agentId = new Types.ObjectId(agentId);
+    }
+    if (productId) {
+      filter.productId = new Types.ObjectId(productId);
+    }
+    if (productionStatus) {
+      filter.productionStatus = { $regex: productionStatus, $options: 'i' };
+    }
+    if (orderStatus) {
+      filter.orderStatus = { $regex: orderStatus, $options: 'i' };
+    }
+    if (fromDate || toDate) {
+      filter.createdAt = {};
+      if (fromDate) {
+        filter.createdAt.$gte = new Date(fromDate);
+      }
+      if (toDate) {
+        const endDate = new Date(toDate);
+        endDate.setHours(23, 59, 59, 999);
+        filter.createdAt.$lte = endDate;
+      }
+    }
+    if (q) {
+      filter.$or = [
+        { customerName: { $regex: q, $options: 'i' } },
+        { trackingNumber: { $regex: q, $options: 'i' } },
+        { product: { $regex: q, $options: 'i' } }
+      ];
+    }
+
+    // Sorting
+    const sort: any = {};
+    if (sortBy) {
+      sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+    } else {
+      sort.createdAt = -1;
+    }
+
+    // Lấy dữ liệu Summary1
+    const rows = await this.summaryModel
+      .find(filter)
+      .sort(sort)
+      .lean();
+
+    if (format === 'xlsx') {
+      const XLSX = await import('xlsx');
+      const data = [
+        ['_id', 'orderId', 'manualPayment', 'mustPay', 'needToPay'], // Header với 5 cột
+        ...rows.map((r: any) => [
+          String(r._id),
+          String(r.orderId || r._id), // orderId hoặc _id làm backup
+          r.manualPayment || 0,
+          r.mustPay || 0, // Cột mustPay
+          r.needToPay || 0 // Thêm cột needToPay
+        ])
+      ];
+      
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      XLSX.utils.book_append_sheet(wb, ws, 'Manual Payment Template');
+      
+      const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+      const filename = `manual_payment_template_${new Date().toISOString().split('T')[0]}.xlsx`;
+      
+      if (res) {
+        res.set({
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'Content-Disposition': `attachment; filename="${filename}"`
+        });
+        res.send(buffer);
+        return;
+      }
+      return buffer;
+    } else {
+      // CSV format with UTF-8 BOM
+      let csv = '\uFEFF'; // UTF-8 BOM
+      csv += '_id,orderId,manualPayment,mustPay,needToPay\n'; // Header với 5 cột
+      
+      for (const row of rows) {
+        csv += `"${String(row._id)}","${String(row.orderId || row._id)}","${row.manualPayment || 0}","${row.mustPay || 0}","${row.needToPay || 0}"\n`;
+      }
+      
+      const buffer = Buffer.from(csv, 'utf8');
+      const filename = `manual_payment_template_${new Date().toISOString().split('T')[0]}.csv`;
+      
+      if (res) {
+        res.set({
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="${filename}"`
+        });
+        res.send(buffer);
+        return;
+      }
+      return buffer;
+    }
+  }
+
+  /** Import Manual Payment template để cập nhật manualPayment theo _id */
+  @Post('summary/import-manual-payment-template')
+  async importManualPaymentTemplate(@Body() body: { 
+    data: Array<{ _id: string; orderId?: string; manualPayment?: number }> 
+  }) {
+    const { data } = body;
+    
+    if (!data || !Array.isArray(data)) {
+      throw new Error('Invalid data format');
+    }
+
+    const results = {
+      total: data.length,
+      success: 0,
+      failed: 0,
+      errors: [] as string[]
+    };
+
+    for (const item of data) {
+      try {
+        const { _id, manualPayment } = item;
+        
+        if (!_id) {
+          results.failed++;
+          results.errors.push('Missing _id');
+          continue;
+        }
+
+        // Tìm record Summary1
+        const existing = await this.summaryModel.findById(_id).lean();
+        if (!existing) {
+          results.failed++;
+          results.errors.push(`Summary1 not found: ${_id}`);
+          continue;
+        }
+
+        // Chỉ cập nhật manualPayment
+        if (manualPayment !== undefined) {
+          const newManualPayment = Number(manualPayment || 0);
+          
+          // Tính lại needToPay
+          const paid = Number(existing.paid || 0);
+          const mustPay = Number(existing.mustPay || 0);
+          const newNeedToPay = paid - mustPay - newManualPayment;
+
+          await this.summaryModel.findByIdAndUpdate(_id, { 
+            $set: { 
+              manualPayment: newManualPayment,
+              needToPay: newNeedToPay
+            }
+          });
+          
+          // Schedule push to Google Sheet
+          const agentId = String(existing.agentId);
+          this.svc.schedulePushOnly(agentId, 2000);
+          
+          results.success++;
+        } else {
+          results.failed++;
+          results.errors.push(`No manualPayment data for ID: ${_id}`);
+        }
+
+      } catch (error: any) {
+        results.failed++;
+        results.errors.push(`Error processing ${item._id}: ${error.message}`);
+      }
+    }
+
+    return results;
+  }
+
   /** Import Summary1 template để cập nhật customerName và manualPayment theo _id */
   @Post('summary/import-template')
   async importSummaryTemplate(@Body() body: { 

@@ -338,7 +338,7 @@ export class TestOrder2Service {
   }
 
   /**
-   * Export template đơn giản chỉ để cập nhật trạng thái giao hàng
+   * Export template đơn giản để cập nhật trạng thái giao hàng với 7 cột
    */
   async exportDeliveryTemplate(): Promise<{
     headers: string[];
@@ -348,39 +348,52 @@ export class TestOrder2Service {
     // Lấy một vài đơn hàng mẫu từ database
     const sampleOrders = await this.model
       .find()
-      .select('_id trackingNumber orderStatus')
+      .select('_id trackingNumber orderStatus codAmount receiverName receiverPhone receiverAddress')
       .limit(5)
       .exec();
 
     return {
-      headers: ['_id', 'trackingNumber', 'orderStatus'],
+      headers: ['_id', 'trackingNumber', 'orderStatus', 'codAmount', 'receiverName', 'receiverPhone', 'receiverAddress'],
       sampleData: sampleOrders.length > 0 ? sampleOrders.map(order => ({
         '_id': order._id.toString(),
         'trackingNumber': order.trackingNumber || 'VN123456789',
-        'orderStatus': order.orderStatus || 'Đã giao hàng'
+        'orderStatus': order.orderStatus || 'Đã giao hàng',
+        'codAmount': order.codAmount || 0,
+        'receiverName': order.receiverName || 'Nguyễn Văn A',
+        'receiverPhone': order.receiverPhone || '0901234567',
+        'receiverAddress': order.receiverAddress || '123 Đường ABC, Quận 1, TP.HCM'
       })) : [
         {
           '_id': '66e3f4b2c8d9e1234567890a',
           'trackingNumber': 'VN123456789',
-          'orderStatus': 'Đã giao hàng'
+          'orderStatus': 'Đã giao hàng',
+          'codAmount': 500000,
+          'receiverName': 'Nguyễn Văn A',
+          'receiverPhone': '0901234567',
+          'receiverAddress': '123 Đường ABC, Quận 1, TP.HCM'
         },
         {
           '_id': '66e3f4b2c8d9e1234567890b',
           'trackingNumber': 'VN987654321',
-          'orderStatus': 'Đang vận chuyển'
+          'orderStatus': 'Đang vận chuyển',
+          'codAmount': 300000,
+          'receiverName': 'Trần Thị B',
+          'receiverPhone': '0912345678',
+          'receiverAddress': '456 Đường XYZ, Quận 2, TP.HCM'
         }
       ],
       instructions: [
-        '1. Chỉ cập nhật cột trackingNumber và orderStatus',
+        '1. Cập nhật 6 cột: trackingNumber, orderStatus, codAmount, receiverName, receiverPhone, receiverAddress',
         '2. Giữ nguyên _id để xác định đúng đơn hàng cần cập nhật',
         '3. Trạng thái có thể: "Chưa có mã vận đơn", "Đã có mã vận đơn", "Đang vận chuyển", "Đã giao hàng", "Giao không thành công", "Đã hủy"',
-        '4. File chỉ chứa 3 cột để dễ xử lý và tránh lỗi'
+        '4. codAmount phải là số (0 nếu không có COD)',
+        '5. Các trường text có thể để trống nếu không cần cập nhật'
       ]
     };
   }
 
   /**
-   * Import file cập nhật trạng thái giao hàng đơn giản
+   * Import file cập nhật trạng thái giao hàng với 7 cột
    */
   async importDeliveryStatus(file: Express.Multer.File): Promise<{
     success: number;
@@ -416,7 +429,7 @@ export class TestOrder2Service {
 
       return {
         ...results,
-        message: `Đã cập nhật trạng thái giao hàng cho ${results.success}/${records.length} đơn hàng. Lỗi: ${results.errors.length}`
+        message: `Đã cập nhật trạng thái giao hàng cho ${results.success}/${records.length} đơn hàng. Thành công: ${results.success}, Lỗi: ${results.errors.length}`
       };
     } catch (error) {
       throw new BadRequestException(`Lỗi xử lý file: ${error.message}`);
@@ -424,8 +437,8 @@ export class TestOrder2Service {
   }
 
   /**
-   * Export Excel file chỉ chứa các đơn hàng chưa giao thành công
-   * Chỉ bao gồm ID, trackingNumber, orderStatus
+   * Export Excel file chứa các đơn hàng chưa giao thành công
+   * Bao gồm 7 cột: ID, trackingNumber, orderStatus, codAmount, receiverName, receiverPhone, receiverAddress
    */
   async exportPendingDelivery(): Promise<{
     headers: string[];
@@ -445,7 +458,7 @@ export class TestOrder2Service {
           { orderStatus: '' }
         ]
       })
-      .select('_id trackingNumber orderStatus createdAt customerName')
+      .select('_id trackingNumber orderStatus codAmount receiverName receiverPhone receiverAddress createdAt customerName')
       .sort({ createdAt: -1 })
       .exec();
 
@@ -454,12 +467,16 @@ export class TestOrder2Service {
       '_id': order._id.toString(),
       'trackingNumber': order.trackingNumber || '',
       'orderStatus': order.orderStatus || 'Chưa có mã vận đơn',
+      'codAmount': order.codAmount || 0,
+      'receiverName': order.receiverName || '',
+      'receiverPhone': order.receiverPhone || '',
+      'receiverAddress': order.receiverAddress || '',
       'customerName': order.customerName || '',
       'createdAt': order.createdAt?.toISOString().split('T')[0] || ''
     }));
 
     return {
-      headers: ['_id', 'trackingNumber', 'orderStatus', 'customerName', 'createdAt'],
+      headers: ['_id', 'trackingNumber', 'orderStatus', 'codAmount', 'receiverName', 'receiverPhone', 'receiverAddress', 'customerName', 'createdAt'],
       data: exportData,
       fileName: `don-hang-chua-giao-thanh-cong-${new Date().toISOString().split('T')[0]}.csv`,
       totalRecords: pendingOrders.length
@@ -574,7 +591,7 @@ export class TestOrder2Service {
   }
 
   /**
-   * Xử lý cập nhật trạng thái giao hàng đơn giản chỉ với 3 trường
+   * Xử lý cập nhật trạng thái giao hàng với 7 cột (6 cột được cập nhật theo _id)
    */
   private async processDeliveryStatusUpdate(record: any, rowNumber: number): Promise<void> {
     try {
@@ -582,18 +599,38 @@ export class TestOrder2Service {
         throw new Error(`Thiếu _id để xác định đơn hàng cần cập nhật`);
       }
 
-      if (!record.orderStatus || !record.orderStatus.trim()) {
-        throw new Error(`Thiếu orderStatus để cập nhật`);
+      const id = record._id.trim();
+      const updateData: any = {};
+
+      // Cập nhật các trường nếu có giá trị
+      if (record.trackingNumber !== undefined) {
+        updateData.trackingNumber = record.trackingNumber ? record.trackingNumber.toString().trim() : '';
       }
 
-      const id = record._id.trim();
-      const updateData: any = {
-        orderStatus: record.orderStatus.toString().trim()
-      };
+      if (record.orderStatus !== undefined && record.orderStatus.toString().trim()) {
+        updateData.orderStatus = record.orderStatus.toString().trim();
+      }
 
-      // Chỉ cập nhật trackingNumber nếu có giá trị
-      if (record.trackingNumber && record.trackingNumber.toString().trim()) {
-        updateData.trackingNumber = record.trackingNumber.toString().trim();
+      if (record.codAmount !== undefined) {
+        const codValue = parseFloat(record.codAmount);
+        updateData.codAmount = isNaN(codValue) ? 0 : codValue;
+      }
+
+      if (record.receiverName !== undefined) {
+        updateData.receiverName = record.receiverName ? record.receiverName.toString().trim() : '';
+      }
+
+      if (record.receiverPhone !== undefined) {
+        updateData.receiverPhone = record.receiverPhone ? record.receiverPhone.toString().trim() : '';
+      }
+
+      if (record.receiverAddress !== undefined) {
+        updateData.receiverAddress = record.receiverAddress ? record.receiverAddress.toString().trim() : '';
+      }
+
+      // Chỉ cập nhật nếu có ít nhất một trường được cập nhật
+      if (Object.keys(updateData).length === 0) {
+        throw new Error(`Không có dữ liệu để cập nhật`);
       }
 
       const doc = await this.model.findByIdAndUpdate(id, updateData, { new: true }).exec();

@@ -6,7 +6,7 @@
       <button class="btn btn-success" (click)="downloadCSV()" aria-label="Tải CSV">📥 Tải CSV</button>
       <button class="btn btn-warning" (click)="openUploadModal()" aria-label="Tải lên & Cập nhật">📤 Tải lên & Cập
         nhật</button>
-      <button class="btn btn-info" (click)="openDeliveryModal()" aria-label="Cập nhật Trạng thái Giao hàng">🚚 Cập nhật TT Giao hàng</button>
+      <button class="btn btn-info" (click)="openDeliveryModal()" aria-label="Cập nhật Trạng thái Giao hàng">🚚 Cập nhật TT Giao hàng (7 cột)</button>
       <button class="btn btn-danger" (click)="downloadPendingDelivery()" aria-label="Tải xuống đơn chưa giao thành công">❌ Chưa Giao Thành Công</button>
     </div>
     <div class="stats">
@@ -268,18 +268,31 @@
 
       <div class="modal-body">
         <div class="upload-section">
-          <h4>1. Tải Template đơn giản (chỉ 3 cột)</h4>
+          <h4>1. Tải Template (7 cột đầy đủ)</h4>
           <button class="btn btn-secondary" (click)="downloadDeliveryTemplate()">
             📥 Tải template Excel
           </button>
           <p class="help-text">
-            File chỉ có 3 cột: <strong>ID đơn hàng, Mã vận đơn, Trạng thái giao hàng</strong>. 
-            Dễ dàng cập nhật hàng loạt mà không lo lỗi do quá nhiều cột.
+            File có 7 cột: <strong>ID đơn hàng</strong>, <strong>Mã vận đơn</strong>, <strong>Trạng thái giao hàng</strong>, 
+            <strong>Số tiền COD</strong>, <strong>Tên người nhận</strong>, <strong>SĐT người nhận</strong>, <strong>Địa chỉ người nhận</strong>.
+          </p>
+          <p class="help-text">
+            Cập nhật 6 cột dựa trên ID đơn hàng. Có thể để trống các trường không cần cập nhật.
           </p>
         </div>
 
         <div class="upload-section">
-          <h4>2. Chọn file để cập nhật trạng thái</h4>
+          <h4>2. Tải đơn hàng chưa giao thành công</h4>
+          <button class="btn btn-info" (click)="downloadPendingDelivery()">
+            📊 Tải đơn chưa giao thành công
+          </button>
+          <p class="help-text">
+            Tải file Excel chứa tất cả đơn hàng chưa giao thành công để dễ dàng cập nhật trạng thái.
+          </p>
+        </div>
+
+        <div class="upload-section">
+          <h4>3. Chọn file để cập nhật trạng thái</h4>
           <div class="file-drop-zone" (drop)="onDeliveryFileDrop($event)" (dragover)="onDragOver($event)"
             [class.has-file]="deliveryUploadFile()">
             <div *ngIf="!deliveryUploadFile(); else deliveryFileSelectedTpl" class="drop-message">
@@ -290,7 +303,7 @@
               <button class="btn btn-outline" (click)="deliveryFileInput.click()">
                 Chọn file
               </button>
-              <p class="file-types">File đơn giản: CSV, Excel (.xls, .xlsx) - Chỉ 3 cột</p>
+              <p class="file-types">File Excel/CSV với 7 cột (CSV, Excel: .xls, .xlsx)</p>
             </div>
 
             <ng-template #deliveryFileSelectedTpl>

@@ -1,6 +1,43 @@
-# Hệ Thống Quản Lý Doanh Nghiệp
+# Final6 - Hệ Thống Quản Lý Doanh Nghiệp
 
 Hệ thống quản lý toàn diện cho doanh nghiệp với backend NestJS + MongoDB và frontend Angular.
+
+## 🔥 Quick Setup
+
+### Clone và Cài Đặt
+```bash
+git clone https://github.com/vuthevietgps/final6.git
+cd final6
+```
+
+### Cài Đặt Dependencies
+```bash
+# Cài đặt backend dependencies
+cd backend
+npm install
+
+# Cài đặt frontend dependencies  
+cd ../frontend
+npm install
+```
+
+### Khởi Động Ứng Dụng
+```bash
+# Terminal 1: Backend
+cd backend
+npm run start:dev
+
+# Terminal 2: Frontend
+cd frontend
+npm start
+```
+
+**Truy cập**: http://localhost:4200
+
+## 📋 Yêu Cầu Hệ Thống
+- Node.js v18+
+- MongoDB v5.0+
+- npm hoặc yarn
 
 ## Cấu trúc Project
 

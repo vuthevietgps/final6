@@ -352,6 +352,42 @@ export class Summary1Component implements OnInit {
     });
   }
 
+  exportManualPaymentTemplate() {
+    const currentFilter = this.filter();
+    let url = 'http://localhost:3000/google-sync/summary/export-manual-payment-template?format=xlsx';
+    
+    // Thêm tất cả filter params vào URL
+    this.addFilterParamsToUrl(url, currentFilter).then(fullUrl => {
+      this.http.get(fullUrl, { responseType: 'blob', observe: 'response' })
+        .subscribe({
+          next: (response) => {
+            const blob = response.body;
+            if (!blob) return;
+            
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = 'manual_payment_template.xlsx';
+            if (contentDisposition) {
+              const matches = /filename="?([^"]*)"?/.exec(contentDisposition);
+              if (matches && matches[1]) filename = matches[1];
+            }
+            
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+          },
+          error: (e) => {
+            console.error('Export manual payment template failed:', e);
+            alert('Lỗi tải template thanh toán: ' + (e.error?.message || e.message));
+          }
+        });
+    });
+  }
+
   private async addFilterParamsToUrl(baseUrl: string, filter: any): Promise<string> {
     const params = new URLSearchParams();
     
@@ -386,6 +422,127 @@ export class Summary1Component implements OnInit {
     
     // Reset input
     input.value = '';
+  }
+
+  onManualPaymentFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    
+    // Kiểm tra định dạng file
+    if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+      this.parseExcelFile(file);
+    } else if (file.name.endsWith('.csv')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        this.parseAndImportManualPaymentCSV(content, file.name);
+      };
+      reader.readAsText(file, 'utf-8');
+    } else {
+      alert('Chỉ hỗ trợ file Excel (.xlsx, .xls) hoặc CSV');
+    }
+    
+    // Reset input
+    input.value = '';
+  }
+
+  private parseExcelFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        // Import xlsx library dynamically
+        import('xlsx').then(XLSX => {
+          const workbook = XLSX.read(e.target?.result, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          
+          this.parseAndImportManualPaymentData(data as any[][], file.name);
+        }).catch(error => {
+          console.error('Error loading xlsx library:', error);
+          alert('Lỗi tải thư viện Excel. Vui lòng thử lại.');
+        });
+      } catch (error) {
+        console.error('Error reading Excel file:', error);
+        alert('Lỗi đọc file Excel');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  private parseAndImportManualPaymentCSV(content: string, filename: string) {
+    try {
+      // Parse CSV content
+      const lines = content.split('\n').filter(line => line.trim());
+      if (lines.length < 2) {
+        alert('File CSV không hợp lệ (ít nhất 2 dòng)');
+        return;
+      }
+      
+      // Convert CSV to array format
+      const data = [];
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        data.push(this.parseCSVLine(line));
+      }
+      
+      this.parseAndImportManualPaymentData(data, filename);
+    } catch (error) {
+      console.error('Parse CSV failed:', error);
+      alert('Lỗi đọc file CSV');
+    }
+  }
+
+  private parseAndImportManualPaymentData(data: any[][], filename: string) {
+    try {
+      if (data.length < 2) {
+        alert('File không có dữ liệu (ít nhất 2 dòng)');
+        return;
+      }
+      
+      // Skip header line, parse data lines
+      const importData = [];
+      for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        if (!row || row.length < 3) continue;
+        
+        const _id = String(row[0] || '').trim();
+        const orderId = String(row[1] || '').trim();
+        const manualPayment = parseFloat(row[2]) || 0;
+        // Bỏ qua cột mustPay (row[3]) - chỉ dùng để tham khảo
+        
+        if (_id) {
+          importData.push({ _id, orderId, manualPayment });
+        }
+      }
+      
+      if (importData.length === 0) {
+        alert('Không tìm thấy dữ liệu hợp lệ trong file');
+        return;
+      }
+      
+      // Confirm import
+      if (!confirm(`Sẽ cập nhật thanh toán thủ công cho ${importData.length} bản ghi. Tiếp tục?\n\nLưu ý: Chỉ cập nhật cột manualPayment, cột mustPay chỉ để tham khảo.`)) return;
+      
+      // Send import request
+      this.http.post('http://localhost:3000/google-sync/summary/import-manual-payment-template', { data: importData })
+        .subscribe({
+          next: (result: any) => {
+            alert(`Cập nhật thanh toán hoàn thành:\n- Thành công: ${result.success}\n- Thất bại: ${result.failed}\n${result.errors.length > 0 ? '- Lỗi: ' + result.errors.slice(0, 3).join(', ') : ''}`);
+            this.refresh(); // Reload data
+          },
+          error: (e) => {
+            console.error('Import manual payment failed:', e);
+            alert('Lỗi cập nhật thanh toán: ' + (e.error?.message || e.message));
+          }
+        });
+      
+    } catch (error) {
+      console.error('Parse manual payment data failed:', error);
+      alert('Lỗi xử lý dữ liệu thanh toán');
+    }
   }
 
   private parseAndImportTemplate(content: string, filename: string) {
