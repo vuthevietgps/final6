@@ -38,8 +38,8 @@ export class QuoteService {
       .pipe(catchError(this.handleError));
   }
 
-  createQuote(quote: CreateQuote): Observable<Quote> {
-    return this.http.post<Quote>(this.apiUrl, quote)
+  createQuote(quote: CreateQuote): Observable<Quote | Quote[]> {
+    return this.http.post<Quote | Quote[]>(this.apiUrl, quote)
       .pipe(catchError(this.handleError));
   }
 

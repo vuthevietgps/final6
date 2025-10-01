@@ -1,0 +1,314 @@
+<!-- Header và toolbar -->
+<div class="fanpage-container">
+  <div class="header">
+    <h2>📘 Quản lý Fanpage</h2>
+    <button class="btn-primary" (click)="openAddModal()">
+      ➕ Thêm mới
+    </button>
+  </div>
+
+  <!-- Thông báo lỗi -->
+  <div *ngIf="error()" class="alert alert-error">
+    {{ error() }}
+    <button (click)="error.set(null)" class="btn-close">×</button>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="loading()" class="loading">
+    Đang tải dữ liệu...
+  </div>
+
+  <!-- Bảng danh sách fanpage -->
+  <div *ngIf="!loading()" class="table-container">
+    <table class="fanpage-table">
+      <thead>
+        <tr>
+          <th>Avatar</th>
+          <th>Tên</th>
+          <th>ID</th>
+          <th>Trạng thái</th>
+          <th>Kết nối</th>
+          <th>Hành động</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let fanpage of fanpages(); trackBy: trackById" class="fanpage-row">
+          <td class="avatar-col">
+            <div class="avatar" [style.background-image]="fanpage.avatarUrl ? 'url(' + fanpage.avatarUrl + ')' : ''">
+                          <span class="avatar-text" *ngIf="!fanpage.avatarUrl">{{ fanpage.name.charAt(0).toUpperCase() }}</span>
+            </div>
+          </td>
+          <td>
+            <div class="fanpage-name">{{ fanpage.name }}</div>
+            <div class="fanpage-desc" *ngIf="fanpage.description">{{ fanpage.description }}</div>
+          </td>
+          <td>{{ fanpage.pageId }}</td>
+          <td>
+            <span class="status-badge" [class]="fanpage.status">
+              {{ fanpage.status === 'active' ? 'Hoạt động' : 'Tạm dừng' }}
+            </span>
+          </td>
+          <td>
+            <div class="connection-info">
+              <div>{{ fanpage.connectedAt | date:'dd/MM/yyyy' }}</div>
+              <div class="ai-status">
+                <span [class]="fanpage.aiEnabled ? 'ai-enabled' : 'ai-disabled'">
+                  {{ fanpage.aiEnabled ? '🤖 AI Bật' : '⭕ AI Tắt' }}
+                </span>
+                <small *ngIf="fanpage.openAIConfigId" style="display:block;opacity:.6;font-size:10px;">Cfg: {{ fanpage.openAIConfigId.slice(-6) }}</small>
+              </div>
+            </div>
+          </td>
+          <td class="actions">
+            <button class="btn-icon" (click)="openEditModal(fanpage)" title="Chỉnh sửa">
+              ✏️
+            </button>
+            <button class="btn-icon" (click)="toggleAI(fanpage)" [title]="fanpage.aiEnabled ? 'Tắt AI' : 'Bật AI'">
+              {{ fanpage.aiEnabled ? '🔴' : '🟢' }}
+            </button>
+            <button class="btn-icon" *ngIf="!fanpage.openAIConfigId" (click)="createAIConfig(fanpage)" title="Tạo config AI">
+              🤖
+            </button>
+            <button class="btn-icon btn-danger" (click)="deleteFanpage(fanpage)" title="Xóa">
+              🗑️
+            </button>
+          </td>
+        </tr>
+        <tr *ngIf="fanpages().length === 0" class="empty-row">
+          <td colspan="6" class="text-center">Chưa có fanpage nào</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal thêm/sửa fanpage -->
+<div *ngIf="showAddModal()" class="modal-overlay" (click)="closeModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>{{ editingFanpage() ? 'Chỉnh sửa' : 'Thêm mới' }} Fanpage</h3>
+      <button class="btn-close" (click)="closeModal()">×</button>
+    </div>
+    
+    <div class="modal-body">
+      <!-- Page ID -->
+      <div class="form-group">
+        <label for="pageId">Page ID **</label>
+        <input 
+          id="pageId"
+          type="text" 
+          [value]="formData().pageId || ''"
+          (input)="onInputChange($event, 'pageId')"
+          placeholder="Nhập Page ID"
+          required>
+      </div>
+
+      <!-- Tên fanpage -->
+      <div class="form-group">
+        <label for="name">Tên Fanpage **</label>
+        <input 
+          id="name"
+          type="text" 
+          [value]="formData().name || ''"
+          (input)="onInputChange($event, 'name')"
+          placeholder="Nhập tên fanpage"
+          required>
+      </div>
+
+      <!-- Access Token -->
+      <div class="form-group">
+        <label for="accessToken">Access Token **</label>
+        <textarea 
+          id="accessToken"
+          [value]="formData().accessToken || ''"
+          (input)="onInputChange($event, 'accessToken')"
+          placeholder="Nhập access token"
+          rows="3"
+          required></textarea>
+      </div>
+
+      <!-- Trạng thái và ngày -->
+      <div class="form-row">
+        <div class="form-group">
+          <label for="status">Trạng thái **</label>
+          <select 
+            id="status"
+            [value]="formData().status || 'active'"
+            (change)="onInputChange($event, 'status')">
+            <option value="active">active</option>
+            <option value="inactive">inactive</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Kết nối **</label>
+          <input type="text" value="09/29/2025 05" readonly>
+        </div>
+        <div class="form-group">
+          <label>Refresh gần nhất</label>
+          <input type="text" placeholder="mm/dd/yyyy --:-">
+        </div>
+      </div>
+
+      <!-- Avatar URL -->
+      <div class="form-group">
+        <label for="avatarUrl">Avatar URL</label>
+        <input 
+          id="avatarUrl"
+          type="text" 
+          [value]="formData().avatarUrl || ''"
+          (input)="onInputChange($event, 'avatarUrl')"
+          placeholder="https://...">
+      </div>
+
+      <!-- OpenAI Config chọn sẵn (chỉ hiện khi chỉnh sửa) -->
+      <div class="form-group" *ngIf="editingFanpage()">
+        <label for="openAIConfig">Cấu hình OpenAI</label>
+        <select id="openAIConfig" [value]="formData().openAIConfigId || ''" (change)="onInputChange($event, 'openAIConfigId')">
+          <option value="">(Sử dụng config mặc định của fanpage)</option>
+          <option *ngFor="let c of aiConfigs()" [value]="c._id">{{ c.name }} • {{ c.model }}</option>
+        </select>
+        <div class="hint" *ngIf="aiConfigLoading()">Đang tải danh sách cấu hình...</div>
+        <div class="hint">Khi tạo mới fanpage sẽ tự tạo config AI dựa trên mô tả kinh doanh</div>
+      </div>
+
+      <!-- ConnectedBy và Default Product Group -->
+      <div class="form-row">
+        <div class="form-group">
+          <label>ConnectedBy (UserId)</label>
+          <input type="text" [value]="formData().connectedBy || ''" readonly>
+        </div>
+        <div class="form-group">
+          <label>Default Product Group **</label>
+          <select [value]="formData().defaultProductGroup || ''">
+            <option value="">Chọn nhóm sản phẩm...</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Mô tả -->
+      <div class="form-group">
+        <label for="description">Mô tả fanpage / lĩnh vực kinh doanh</label>
+        <textarea 
+          id="description"
+          [value]="formData().description || ''"
+          (input)="onInputChange($event, 'description')"
+          rows="3"
+          placeholder="Mô tả ngắn gọn về fanpage..."></textarea>
+      </div>
+
+      <!-- Scripts -->
+      <div class="scripts-section">
+        <h4>Kịch bản Chat Fallback (Generic Script)</h4>
+        <p class="help-text">Sử dụng khi không xác định được nhóm quảng cáo từ tin nhắn</p>
+        
+        <div class="script-grid">
+          <div class="form-group">
+            <label>Lời chào (Greeting)</label>
+            <textarea 
+              [value]="formData().greetingScript || ''"
+              (input)="onInputChange($event, 'greetingScript')"
+              placeholder="Tin nhắn đầu tiên"></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label>Yêu cầu làm rõ (Clarify)</label>
+            <textarea 
+              [value]="formData().clarifyScript || ''"
+              (input)="onInputChange($event, 'clarifyScript')"
+              placeholder="Khi tin nhận chưa rõ ràng, cần clarify tôi để biết sẵn sàng, hỗ trợ thông tin..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Đề xuất sản phẩm</label>
+            <textarea 
+              [value]="formData().productSuggestScript || ''"
+              (input)="onInputChange($event, 'productSuggestScript')"
+              placeholder="Trước khi AI đề xuất, hỏi thêm các thông tin khách hàng để làm rõ thêm và nghiêm tự khách..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Tin nhắn chuyển nhân viên</label>
+            <textarea 
+              [value]="formData().fallbackScript || ''"
+              (input)="onInputChange($event, 'fallbackScript')"
+              placeholder="Khi không thể xử lý"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Lời kết thúc (Closing)</label>
+            <textarea 
+              [value]="formData().closingScript || ''"
+              (input)="onInputChange($event, 'closingScript')"
+              placeholder="Tin nhắn kết thúc cuộc hội thoại. Định hướng các thủ tục tinh AI cần. Lần clarify liên hệ cho hỏi thông tin AI (size, màu sắc, v.v.)"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Thống kê -->
+      <details class="stats-section">
+        <summary>➕ Thêm thuộc tính sản phẩm</summary>
+        <div class="stats-grid">
+          <div class="form-group">
+            <label>Subscriber</label>
+            <input 
+              type="number" 
+              [value]="formData().subscriberCount || 0"
+              (input)="onNumberChange($event, 'subscriberCount')"
+              min="0">
+          </div>
+          <div class="form-group">
+            <label>Message quota</label>
+            <input 
+              type="number" 
+              [value]="formData().messageQuota || 10000"
+              (input)="onNumberChange($event, 'messageQuota')"
+              min="0">
+          </div>
+          <div class="form-group">
+            <label>Sent this month</label>
+            <input 
+              type="number" 
+              [value]="formData().sentThisMonth || 0"
+              (input)="onNumberChange($event, 'sentThisMonth')"
+              min="0"
+              readonly>
+          </div>
+        </div>
+
+        <!-- Timezone và flags -->
+        <div class="form-row">
+          <div class="form-group">
+            <label>Múi giờ</label>
+            <input 
+              type="text" 
+              [value]="formData().timezone || 'Asia/Ho_Chi_Minh'"
+              (input)="onInputChange($event, 'timezone')">
+          </div>
+          <div class="form-group checkbox-group">
+            <label>
+              <input 
+                type="checkbox" 
+                [checked]="formData().subscribedWebhook || false"
+                (change)="onCheckboxChange($event, 'subscribedWebhook')">
+              Đã subscribe webhook
+            </label>
+          </div>
+          <div class="form-group checkbox-group">
+            <label>
+              <input 
+                type="checkbox" 
+                [checked]="formData().aiEnabled || false"
+                (change)="onCheckboxChange($event, 'aiEnabled')">
+              Bật AI Chatbot
+            </label>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeModal()">Hủy</button>
+      <button class="btn-primary" (click)="saveFanpage()">Lưu</button>
+    </div>
+  </div>
+</div>

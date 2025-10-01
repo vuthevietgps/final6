@@ -15,6 +15,7 @@ export interface Product {
   status: 'Hoạt động' | 'Tạm dừng';
   color: string;
   notes?: string;
+  resourceLink?: string;
   sku: string;
   totalCost: number;
   createdAt: string;
@@ -41,6 +42,7 @@ export interface CreateProductDto {
   status?: 'Hoạt động' | 'Tạm dừng';
   color?: string;
   notes?: string;
+  resourceLink?: string;
 }
 
 export interface UpdateProductDto extends Partial<CreateProductDto> {}

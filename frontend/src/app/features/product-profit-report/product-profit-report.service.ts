@@ -21,23 +21,81 @@ export class ProductProfitReportService {
   getProductProfitReport(filter: ProductProfitFilter): Observable<ProductProfitReport> {
     let params = new HttpParams();
     
-    if (filter.year) {
-      params = params.set('year', filter.year.toString());
+    // Convert period to date range
+    const dateRange = this.convertPeriodToDateRange(filter.period, filter.year);
+    const fromDate = filter.fromDate || dateRange.from;
+    const toDate = filter.toDate || dateRange.to;
+    
+    if (fromDate) {
+      params = params.set('from', fromDate);
     }
-    if (filter.period) {
-      params = params.set('period', filter.period);
+    if (toDate) {
+      params = params.set('to', toDate);
     }
-    if (filter.fromDate) {
-      params = params.set('fromDate', filter.fromDate);
-    }
-    if (filter.toDate) {
-      params = params.set('toDate', filter.toDate);
-    }
-    if (filter.productId) {
-      params = params.set('productId', filter.productId);
+    if (filter.productName) {
+      params = params.set('productName', filter.productName);
     }
 
     return this.http.get<ProductProfitReport>(this.baseUrl, { params });
+  }
+
+  /**
+   * Convert period filter to date range
+   */
+  private convertPeriodToDateRange(period?: string, year?: number): { from?: string; to?: string } {
+    const now = new Date();
+    const currentYear = year || now.getFullYear();
+    
+    switch (period) {
+      case 'week': {
+        const weekAgo = new Date(now);
+        weekAgo.setDate(now.getDate() - 7);
+        return {
+          from: weekAgo.toISOString().split('T')[0],
+          to: now.toISOString().split('T')[0]
+        };
+      }
+      case '10days': {
+        const tenDaysAgo = new Date(now);
+        tenDaysAgo.setDate(now.getDate() - 10);
+        return {
+          from: tenDaysAgo.toISOString().split('T')[0],
+          to: now.toISOString().split('T')[0]
+        };
+      }
+      case '30days': {
+        const thirtyDaysAgo = new Date(now);
+        thirtyDaysAgo.setDate(now.getDate() - 30);
+        return {
+          from: thirtyDaysAgo.toISOString().split('T')[0],
+          to: now.toISOString().split('T')[0]
+        };
+      }
+      case 'lastMonth': {
+        const lastMonth = new Date(currentYear, now.getMonth() - 1, 1);
+        const lastMonthEnd = new Date(currentYear, now.getMonth(), 0);
+        return {
+          from: lastMonth.toISOString().split('T')[0],
+          to: lastMonthEnd.toISOString().split('T')[0]
+        };
+      }
+      case 'thisMonth': {
+        const thisMonthStart = new Date(currentYear, now.getMonth(), 1);
+        return {
+          from: thisMonthStart.toISOString().split('T')[0],
+          to: now.toISOString().split('T')[0]
+        };
+      }
+      default:
+        // Default to last 30 days if no period specified
+        if (period === 'custom') return {}; // For custom, rely on fromDate/toDate
+        const defaultStart = new Date(now);
+        defaultStart.setDate(now.getDate() - 30);
+        return {
+          from: defaultStart.toISOString().split('T')[0],
+          to: now.toISOString().split('T')[0]
+        };
+    }
   }
 
   /**
@@ -53,17 +111,19 @@ export class ProductProfitReportService {
   getSummary(filter: ProductProfitFilter): Observable<any> {
     let params = new HttpParams();
     
-    if (filter.year) {
-      params = params.set('year', filter.year.toString());
+    // Convert period to date range
+    const dateRange = this.convertPeriodToDateRange(filter.period, filter.year);
+    const fromDate = filter.fromDate || dateRange.from;
+    const toDate = filter.toDate || dateRange.to;
+    
+    if (fromDate) {
+      params = params.set('from', fromDate);
     }
-    if (filter.period) {
-      params = params.set('period', filter.period);
+    if (toDate) {
+      params = params.set('to', toDate);
     }
-    if (filter.fromDate) {
-      params = params.set('fromDate', filter.fromDate);
-    }
-    if (filter.toDate) {
-      params = params.set('toDate', filter.toDate);
+    if (filter.productName) {
+      params = params.set('productName', filter.productName);
     }
 
     return this.http.get(`${this.baseUrl}/summary`, { params });

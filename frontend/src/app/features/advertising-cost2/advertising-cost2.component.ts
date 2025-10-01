@@ -8,6 +8,8 @@ import { FormsModule } from '@angular/forms';
 import { AdvertisingCost, CreateAdvertisingCost } from '../advertising-cost/models/advertising-cost.model';
 import { AdvertisingCostService } from '../advertising-cost/advertising-cost.service';
 import { lastValueFrom } from 'rxjs';
+import { AdAccountService } from '../ad-account/ad-account.service';
+import { AdAccount } from '../ad-account/models/ad-account.model';
 
 @Component({
   selector: 'app-advertising-cost2',
@@ -18,12 +20,21 @@ import { lastValueFrom } from 'rxjs';
 })
 export class AdvertisingCost2Component implements OnInit {
   items = signal<AdvertisingCost[]>([]);
+  adAccounts = signal<AdAccount[]>([]);
   loading = signal(false);
   error = signal<string | null>(null);
+  filterAdAccountId = signal('all');
 
-  constructor(private service: AdvertisingCostService) {}
+  constructor(private service: AdvertisingCostService, private adAccountService: AdAccountService) {}
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void { this.loadAdAccounts(); this.load(); }
+
+  loadAdAccounts(): void {
+    this.adAccountService.getAdAccounts().subscribe({
+      next: acs => this.adAccounts.set(acs),
+      error: err => console.error('Load ad accounts error', err)
+    });
+  }
 
   private toIsoFromDdMmYyyy(input: string): string {
     const m = (input || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
@@ -43,7 +54,8 @@ export class AdvertisingCost2Component implements OnInit {
   load(): void {
     this.loading.set(true);
     this.error.set(null);
-    this.service.getAll().subscribe({
+    const filter = this.filterAdAccountId() !== 'all' ? { adAccountId: this.filterAdAccountId() } : undefined;
+    this.service.getAll(filter).subscribe({
       next: rows => {
         const normalized = (rows || []).map(r => ({
           ...r,
@@ -55,6 +67,8 @@ export class AdvertisingCost2Component implements OnInit {
       error: err => { console.error(err); this.error.set('Không thể tải dữ liệu'); this.loading.set(false); }
     });
   }
+
+  onFilterChange(): void { this.load(); }
 
   addNew(): void {
     const todayIso = new Date().toISOString().slice(0,10);

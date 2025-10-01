@@ -297,6 +297,17 @@ export class TestOrder2Component implements OnInit, AfterViewInit {
     }
   }
 
+  // Autocomplete (datalist) support for adGroupId input
+  onAdGroupIdBlur(order: TestOrder2, event: Event): void {
+    const target = event.target as HTMLInputElement;
+    let value = (target.value || '').trim();
+    if (!value) value = '0';
+    // Optimistic UI update so value sticks immediately
+    const newVal = value;
+    this.orders.update(rows => rows.map(r => r._id === order._id ? { ...r, adGroupId: newVal } : r));
+    this.onBlurUpdate(order, 'adGroupId', newVal);
+  }
+
   onInputUpdate(order: TestOrder2, field: keyof TestOrder2, event: Event): void {
     const target = event.target as HTMLInputElement | HTMLTextAreaElement;
     let value: any = target.value;

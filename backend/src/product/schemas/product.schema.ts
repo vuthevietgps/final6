@@ -50,6 +50,61 @@ export class Product {
   @Prop({ trim: true })
   notes: string; // Lưu ý
 
+  @Prop({ trim: true })
+  resourceLink: string; // Link tài nguyên
+
+  // AI-Enhanced Product Images
+  @Prop([{
+    url: { type: String, required: true },
+    description: { type: String, required: true },
+    isMainImage: { type: Boolean, default: false },
+    uploadedAt: { type: Date, default: Date.now },
+    aiAnalysis: {
+      objects: [String], // ["phone", "case", "screen"]
+      colors: [String],  // ["black", "blue", "silver"]
+      features: [String], // ["waterproof", "wireless charging"]
+      keywords: [String], // Auto-generated search keywords
+      confidence: { type: Number, min: 0, max: 1 } // AI confidence score
+    }
+  }])
+  images: Array<{
+    url: string;
+    description: string;
+    isMainImage: boolean;
+    uploadedAt: Date;
+    aiAnalysis: {
+      objects: string[];
+      colors: string[];
+      features: string[];
+      keywords: string[];
+      confidence: number;
+    };
+  }>;
+
+  @Prop({ trim: true })
+  aiDescription: string; // AI-generated comprehensive description
+
+  @Prop([String])
+  searchKeywords: string[]; // Aggregated keywords from all images + manual
+
+  // Fanpage-specific product variations
+  @Prop([{
+    fanpageId: { type: Types.ObjectId, ref: 'Fanpage' },
+    customName: String,
+    customDescription: String,
+    customPrice: Number,
+    isActive: { type: Boolean, default: true },
+    priority: { type: Number, default: 0 } // For sorting recommendations
+  }])
+  fanpageVariations: Array<{
+    fanpageId: Types.ObjectId;
+    customName?: string;
+    customDescription?: string;
+    customPrice?: number;
+    isActive: boolean;
+    priority: number;
+  }>;
+
   // Auto-generated fields
   @Prop({ unique: true, sparse: true })
   sku: string; // Mã sản phẩm tự động

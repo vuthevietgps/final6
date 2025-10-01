@@ -50,7 +50,8 @@ export class ProductComponent implements OnInit {
     estimatedDeliveryDays: 1,
     status: 'Hoạt động',
     color: '#3B82F6',
-    notes: ''
+    notes: '',
+    resourceLink: ''
   });
 
   // Search and filter
@@ -146,7 +147,8 @@ export class ProductComponent implements OnInit {
       estimatedDeliveryDays: 1,
       status: 'Hoạt động',
       color: '#3B82F6',
-      notes: ''
+      notes: '',
+      resourceLink: ''
     });
     this.isAddModalOpen.set(true);
   }
@@ -168,7 +170,8 @@ export class ProductComponent implements OnInit {
       estimatedDeliveryDays: product.estimatedDeliveryDays,
       status: product.status,
       color: product.color || '#3B82F6',
-      notes: product.notes || ''
+      notes: product.notes || '',
+      resourceLink: product.resourceLink || ''
     });
     this.isEditModalOpen.set(true);
   }

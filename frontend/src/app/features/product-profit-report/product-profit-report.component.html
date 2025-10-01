@@ -3,7 +3,7 @@
   <!-- Header -->
   <div class="header">
     <h2>📈 Báo Cáo Lợi Nhuận Sản Phẩm Theo Ngày</h2>
-    <p class="description">Dựa trên dữ liệu từ Tổng hợp 2, hiển thị lợi nhuận của từng sản phẩm theo từng ngày</p>
+    <p class="description">Dựa trên dữ liệu từ Tổng hợp 5, hiển thị lợi nhuận của từng sản phẩm theo từng ngày</p>
   </div>
 
   <!-- Filter Panel -->
@@ -32,17 +32,14 @@
         </select>
       </div>
 
-      <!-- Product Filter -->
+      <!-- Product Search -->
       <div class="filter-group">
-        <label>Sản phẩm:</label>
-        <select 
-          [value]="filter().productId || ''" 
-          (change)="updateFilterProduct($event)">
-          <option value="">Tất cả sản phẩm</option>
-          <option *ngFor="let product of products()" [value]="product.id">
-            {{ product.name }}
-          </option>
-        </select>
+        <label>Tìm sản phẩm:</label>
+        <input 
+          type="text" 
+          placeholder="Nhập tên sản phẩm..."
+          [value]="filter().productName || ''" 
+          (input)="updateFilterProductName($event)">
       </div>
 
       <!-- Custom Date Range (when period = custom) -->

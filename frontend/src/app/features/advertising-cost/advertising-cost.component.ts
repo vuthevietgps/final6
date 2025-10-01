@@ -7,6 +7,8 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { AdvertisingCostService } from './advertising-cost.service';
+import { AdAccountService } from '../ad-account/ad-account.service';
+import { AdAccount } from '../ad-account/models/ad-account.model';
 import { AdvertisingCost, AdvertisingCostSummary, CreateAdvertisingCost } from './models/advertising-cost.model';
 
 @Component({
@@ -19,12 +21,17 @@ import { AdvertisingCost, AdvertisingCostSummary, CreateAdvertisingCost } from '
 export class AdvertisingCostComponent implements OnInit {
   private fb = inject(FormBuilder);
   private service = inject(AdvertisingCostService);
+  private adAccountService = inject(AdAccountService);
 
   // State
   items = signal<AdvertisingCost[]>([]);
+  adAccounts = signal<AdAccount[]>([]);
   loading = signal(false);
   error = signal<string | null>(null);
   summary = signal<AdvertisingCostSummary | null>(null);
+
+  // Filters
+  filterAdAccountId = signal('all');
 
   // UI
   showModal = signal(false);
@@ -44,6 +51,7 @@ export class AdvertisingCostComponent implements OnInit {
     // default values
     const todayIso = new Date().toISOString().slice(0, 10);
     this.form.patchValue({ date: todayIso, spentAmount: 0, cpm: 0, cpc: 0 });
+    this.loadAdAccounts();
     this.loadData();
   }
 
@@ -74,9 +82,17 @@ export class AdvertisingCostComponent implements OnInit {
     return this.toMmDdYyyy(v);
   }
 
+  loadAdAccounts() {
+    this.adAccountService.getAdAccounts().subscribe({
+      next: (acs) => this.adAccounts.set(acs),
+      error: (e) => console.error('Load ad accounts error', e)
+    });
+  }
+
   loadData() {
     this.loading.set(true);
-    this.service.getAll().subscribe({
+    const filter = this.filterAdAccountId() !== 'all' ? { adAccountId: this.filterAdAccountId() } : undefined;
+    this.service.getAll(filter).subscribe({
       next: (data) => {
         // chuẩn hoá hiển thị ngày theo mm/dd/yyyy
         const normalized = data.map(d => ({ ...d, date: this.toMmDdYyyy(d.date?.slice(0,10) || new Date().toISOString().slice(0,10)) } as AdvertisingCost));
@@ -94,6 +110,10 @@ export class AdvertisingCostComponent implements OnInit {
       next: (sum) => this.summary.set(sum),
       error: () => this.summary.set({ totalSpent: 0, count: 0, avgCPM: 0, avgCPC: 0 }),
     });
+  }
+
+  onFilterChange() {
+    this.loadData();
   }
 
   openCreate() {

@@ -82,7 +82,17 @@
   border: none;
   cursor: pointer;
   font-weight: 500;
-  transition: all 0.3s ease;
+  margin-left: 10px;
+  transition: all 0.2s;
+}
+
+.manual-payment-upload {
+  position: relative;
+  display: inline-block;
+}
+
+.manual-payment-upload input[type="file"] {
+  display: none;
 }
 
 .btn-primary {
@@ -97,6 +107,24 @@
 .btn-primary:disabled {
   background-color: #6c757d;
   cursor: not-allowed;
+}
+
+.btn-warning {
+  background-color: #ffc107;
+  color: #212529;
+  border: 1px solid #ffc107;
+  margin-left: 8px;
+}
+
+.btn-warning:hover:not(:disabled) {
+  background-color: #e0a800;
+  border-color: #d39e00;
+}
+
+.btn-warning:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  color: white;
 }
 
 /* Stats Grid */

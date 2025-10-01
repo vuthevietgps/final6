@@ -38,6 +38,8 @@ export class RolesGuard implements CanActivate {
     // - director: thấy tất cả menu và thao tác tất cả
     // - manager: chỉ Đơn hàng + Quảng cáo (và các menu con liên quan)
     // - employee: chỉ Đơn hàng
+    // Normalize role to lowercase to handle case mismatches
+    const userRole = (user.role || '').toLowerCase();
     const rolePermissions: Record<string, string[]> = {
       'director': [
   'users', 'orders', 'products', 'product-categories',
@@ -45,14 +47,14 @@ export class RolesGuard implements CanActivate {
   'ad-accounts', 'ad-groups', 'advertising-costs',
   'labor-costs', 'other-costs', 'salary-config',
   // Newly explicit permissions
-  'customers', 'purchase-costs',
+  'customers', 'purchase-costs', 'fanpages', 'openai-configs',
   'quotes', 'reports', 'export', 'import', 'settings', 'admin'
       ],
       'manager': [
         // Orders
         'orders',
         // Advertising
-        'ad-accounts', 'ad-groups', 'advertising-costs'
+  'ad-accounts', 'ad-groups', 'advertising-costs', 'fanpages', 'openai-configs'
       ],
       'employee': [
         // Orders only
@@ -65,7 +67,10 @@ export class RolesGuard implements CanActivate {
       'external_supplier': ['quotes']
     };
 
-    const userPermissions = rolePermissions[user.role] || [];
+  // Bổ sung mặc định quyền chat-messages cho director & manager để xem hội thoại
+  if(rolePermissions['director'] && !rolePermissions['director'].includes('chat-messages')) rolePermissions['director'].push('chat-messages');
+  if(rolePermissions['manager'] && !rolePermissions['manager'].includes('chat-messages')) rolePermissions['manager'].push('chat-messages');
+  const userPermissions = rolePermissions[userRole] || [];
     return requiredPermissions.every(permission => userPermissions.includes(permission));
   }
 }

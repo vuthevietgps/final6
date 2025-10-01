@@ -31,6 +31,8 @@ export class AdvertisingCostSuggestionComponent implements OnInit {
   combinedData = signal<any[]>([]); // Kết hợp ad groups và suggestions
   loading = signal(false);
   error = signal<string | null>(null);
+  recommendedBudgets = signal<Record<string, number>>({});
+  recommendLoading = signal(false);
   
   // Form data - ẩn form vì không cần thiết nữa
   showAddForm = signal(false);
@@ -99,6 +101,7 @@ export class AdvertisingCostSuggestionComponent implements OnInit {
     await this.loadStatistics();
     await this.loadAdGroups();
     await this.loadAdvertisingCosts();
+    await this.loadRecommendedBudgets();
     
     this.loading.set(false);
     console.log('Final state:', {
@@ -177,6 +180,25 @@ export class AdvertisingCostSuggestionComponent implements OnInit {
       console.error('Error loading advertising costs:', error);
       this.advertisingCosts.set([]); // Ensure empty array on error
       console.log('Set empty array due to error - all costs will show as 0');
+    }
+  }
+
+  async loadRecommendedBudgets(){
+    try {
+      this.recommendLoading.set(true);
+      const today = new Date();
+      const from = new Date(today.getTime() - 7*86400000).toISOString().split('T')[0];
+      const to = today.toISOString().split('T')[0];
+      const data: any = await firstValueFrom(this.http.get(`http://localhost:3000/profit-forecast/recommended-budget?from=${from}&to=${to}`));
+      if (Array.isArray(data)) {
+        const map: Record<string, number> = {};
+        data.forEach(item => { map[item.adGroupId] = item.recommendedDailySpend; });
+        this.recommendedBudgets.set(map);
+      }
+    } catch (e) {
+      console.warn('Cannot load recommended budgets', e);
+    } finally {
+      this.recommendLoading.set(false);
     }
   }
 
@@ -384,6 +406,23 @@ export class AdvertisingCostSuggestionComponent implements OnInit {
       this.error.set('Không thể đồng bộ chi phí ngày hôm qua');
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  // Apply recommended budgets to rows without suggestion or zero cost
+  applyRecommendationsToEmpty() {
+    const rec = this.recommendedBudgets();
+    const rows = this.combinedDataComputed();
+    let applied = 0;
+    rows.forEach(r => {
+      if ((!r.suggestionId || r.suggestedCost === 0) && rec[r.adGroupId]) {
+        const fakeEvent = { target: { value: rec[r.adGroupId].toString() } } as any as Event;
+        this.updateSuggestedCost(r, fakeEvent);
+        applied++;
+      }
+    });
+    if (applied === 0) {
+      console.log('No recommendations applied');
     }
   }
 

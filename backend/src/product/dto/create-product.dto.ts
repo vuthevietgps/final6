@@ -63,4 +63,8 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  resourceLink?: string;
 }

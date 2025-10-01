@@ -32,12 +32,13 @@ export class AuthService {
   'ad-accounts', 'ad-groups', 'advertising-costs',
   'labor-costs', 'other-costs', 'salary-config',
   // Newly explicit permissions used by Sidebar
-  'customers', 'purchase-costs',
+  'customers', 'purchase-costs', 'fanpages', 'openai-configs', 'api-tokens', 'chat-messages', 'pending-orders',
       'quotes', 'reports', 'export', 'import', 'settings', 'admin'
     ],
     [UserRole.MANAGER]: [
       'orders', // Đơn hàng
-      'ad-accounts', 'ad-groups', 'advertising-costs' // Quảng cáo
+      'ad-accounts', 'ad-groups', 'advertising-costs', // Quảng cáo
+  'fanpages', 'openai-configs', 'api-tokens', 'chat-messages', 'pending-orders'
     ],
     [UserRole.EMPLOYEE]: [
       'orders'

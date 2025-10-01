@@ -20,41 +20,123 @@ export class QuoteService {
     private readonly googleSync: GoogleSyncService,
   ) {}
 
-  async create(createQuoteDto: CreateQuoteDto): Promise<Quote> {
-    // Nếu không có product name và agent name, tự động lấy từ database
-    let { product, agentName } = createQuoteDto;
+  async create(createQuoteDto: CreateQuoteDto): Promise<Quote | Quote[]> {
+    const { applyToAllAgents, productId, unitPrice, status, validFrom, validUntil, notes } = createQuoteDto;
     
-    if (!product || !agentName) {
-      const [productDoc, userModel] = await Promise.all([
-        this.productModel.findById(createQuoteDto.productId).exec(),
-        // Import User model inline vì không có sẵn
-        this.quoteModel.db.models.User || this.quoteModel.db.model('User')
-      ]);
-      
-      const userDoc = await userModel.findById(createQuoteDto.agentId).exec();
-      
-      product = product || productDoc?.name || 'Unknown Product';
-      agentName = agentName || userDoc?.fullName || 'Unknown Agent';
+    // Lấy thông tin sản phẩm
+    const productDoc = await this.productModel.findById(productId).exec();
+    if (!productDoc) {
+      throw new NotFoundException(`Product with ID ${productId} not found`);
     }
     
-    const createdQuote = new this.quoteModel({
-      ...createQuoteDto,
-      product,
-      agentName
-    });
-    
-    const saved = await createdQuote.save();
-    const agentId = String(saved.agentId);
-    // Cập nhật Summary1 cho cặp agent+product và chỉ push lên Google (bỏ rebuild toàn bộ)
-    if (agentId && (saved as any).productId) {
-      const productId = String((saved as any).productId);
-      this.googleSync.updateSummaryForAgentProduct(agentId, productId)
-        .then(() => this.googleSync.schedulePushOnly(agentId))
-        .catch(() => this.googleSync.schedulePushOnly(agentId));
-    } else if (agentId) {
-      this.googleSync.schedulePushOnly(agentId);
+    if (applyToAllAgents) {
+      // Tạo báo giá cho tất cả đại lý
+      const userModel = this.quoteModel.db.models.User || this.quoteModel.db.model('User');
+      
+      // Lấy tất cả đại lý (có thể filter theo role nếu cần)
+      const agents = await userModel.find({
+        role: { 
+          $in: [
+            'external_agent', 
+            'internal_agent', 
+            'external_supplier', 
+            'internal_supplier'
+          ] 
+        },
+        isActive: { $ne: false }
+      }).exec();
+      
+      if (!agents || agents.length === 0) {
+        throw new NotFoundException('No agents found to apply quotes');
+      }
+      
+      // Tạo báo giá cho từng đại lý
+      const quotes: Quote[] = [];
+      const createdQuotes = [];
+      
+      for (const agent of agents) {
+        // Kiểm tra xem đã có báo giá cho agent+product này chưa
+        const existingQuote = await this.quoteModel.findOne({
+          productId: productId,
+          agentId: agent._id,
+          isActive: { $ne: false }
+        }).exec();
+        
+        if (!existingQuote) {
+          const quoteData = {
+            productId,
+            agentId: agent._id,
+            product: productDoc.name,
+            agentName: agent.fullName,
+            unitPrice,
+            status: status || 'Chờ duyệt', // Sử dụng status từ DTO
+            validFrom: new Date(validFrom),
+            validUntil: new Date(validUntil),
+            notes: notes || `Báo giá áp dụng cho tất cả đại lý - ${productDoc.name}`,
+            isActive: true
+          };
+          
+          const createdQuote = new this.quoteModel(quoteData);
+          const saved = await createdQuote.save();
+          quotes.push(saved);
+          createdQuotes.push(saved);
+        }
+      }
+      
+      // Cập nhật Google Sync cho tất cả agents được tạo báo giá
+      for (const quote of createdQuotes) {
+        const agentId = String(quote.agentId);
+        const prodId = String(quote.productId);
+        this.googleSync.updateSummaryForAgentProduct(agentId, prodId)
+          .then(() => this.googleSync.schedulePushOnly(agentId))
+          .catch(() => this.googleSync.schedulePushOnly(agentId));
+      }
+      
+      return quotes;
+    } else {
+      // Tạo báo giá cho đại lý cụ thể (logic cũ)
+      if (!createQuoteDto.agentId) {
+        throw new Error('Agent ID is required when not applying to all agents');
+      }
+      
+      let { product, agentName } = createQuoteDto;
+      
+      if (!product || !agentName) {
+        const userModel = this.quoteModel.db.models.User || this.quoteModel.db.model('User');
+        const userDoc = await userModel.findById(createQuoteDto.agentId).exec();
+        
+        product = product || productDoc?.name || 'Unknown Product';
+        agentName = agentName || userDoc?.fullName || 'Unknown Agent';
+      }
+
+      const quoteData = {
+        productId: createQuoteDto.productId,
+        agentId: createQuoteDto.agentId,
+        product,
+        agentName,
+        unitPrice: createQuoteDto.unitPrice,
+        status: createQuoteDto.status || 'Chờ duyệt', // Sử dụng status từ DTO
+        validFrom: new Date(createQuoteDto.validFrom),
+        validUntil: new Date(createQuoteDto.validUntil),
+        notes: createQuoteDto.notes
+      };
+      
+      const createdQuote = new this.quoteModel(quoteData);
+      const saved = await createdQuote.save();
+      const agentId = String(saved.agentId);
+      
+      // Cập nhật Summary1 cho cặp agent+product và chỉ push lên Google (bỏ rebuild toàn bộ)
+      if (agentId && (saved as any).productId) {
+        const productId = String((saved as any).productId);
+        this.googleSync.updateSummaryForAgentProduct(agentId, productId)
+          .then(() => this.googleSync.schedulePushOnly(agentId))
+          .catch(() => this.googleSync.schedulePushOnly(agentId));
+      } else if (agentId) {
+        this.googleSync.schedulePushOnly(agentId);
+      }
+      
+      return saved;
     }
-    return saved;
   }
 
   async findAll(query?: any): Promise<Quote[]> {

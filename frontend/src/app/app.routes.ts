@@ -14,6 +14,30 @@ export const routes: Routes = [
     canActivate: [GuestGuard]
   },
   {
+    path: 'fanpages',
+    loadComponent: () => import('./features/fanpage/fanpage.component').then(m => m.FanpageComponent),
+    canActivate: [AuthGuard],
+    data: { permissions: ['fanpages'] }
+  },
+  {
+    path: 'openai-configs',
+    loadComponent: () => import('./features/openai-config/openai-config.component').then(m => m.OpenAIConfigComponent),
+    canActivate: [AuthGuard],
+    data: { permissions: ['openai-configs'] }
+  },
+  {
+    path: 'api-tokens',
+    loadComponent: () => import('./features/api-token/api-token.component').then(m => m.ApiTokenComponent),
+    canActivate: [AuthGuard],
+    data: { permissions: ['api-tokens'] }
+  },
+  {
+    path: 'conversations',
+    loadComponent: () => import('./features/chat-message/conversation-list.component').then(m => m.ConversationListComponent),
+    canActivate: [AuthGuard],
+    data: { permissions: ['chat-messages'] }
+  },
+  {
     path: 'unauthorized',
     loadComponent: () => import('./features/auth/unauthorized/unauthorized.component').then(m => m.UnauthorizedComponent)
   },
@@ -139,6 +163,7 @@ export const routes: Routes = [
     children: [
       { path: 'ad-group-profit', loadComponent: () => import('./features/ad-group-profit/ad-group-profit.component').then(m => m.AdGroupProfitComponent) },
       { path: 'ad-group-profit-report', loadComponent: () => import('./features/ad-group-profit-report/ad-group-profit-report.component').then(m => m.AdGroupProfitReportComponent) },
+      { path: 'profit-forecast', loadComponent: () => import('./features/profit-forecast/profit-forecast.component').then(m => m.ProfitForecastComponent) },
       { path: 'summary1', loadComponent: () => import('./features/summary1/summary1.component').then(m => m.Summary1Component) },
       { path: 'summary2', loadComponent: () => import('./features/summary2/summary2.component').then(m => m.Summary2Component) },
       { path: 'summary4', loadComponent: () => import('./features/summary4/summary4.component').then(m => m.Summary4Component) },

@@ -1,6 +1,10 @@
 <nav class="sidebar" [class.collapsed]="isCollapsed">
   <div class="sidebar-header">
     <h3 *ngIf="!isCollapsed">Hệ Thống Quản Lý</h3>
+    <button class="btn-theme-toggle" (click)="toggleTheme()" [title]="(themeService.theme()==='dark'?'Chế độ sáng':'Chế độ tối')" [attr.aria-label]="themeService.theme()==='dark'?'Chuyển sang chế độ sáng':'Chuyển sang chế độ tối'" *ngIf="!isCollapsed">
+      <span>{{ themeService.theme()==='dark' ? '🌙' : '☀️' }}</span>
+      <span>{{ themeService.theme()==='dark' ? 'Tối' : 'Sáng' }}</span>
+    </button>
     <button class="collapse-toggle" (click)="toggleCollapse()" [title]="isCollapsed ? 'Mở rộng' : 'Thu gọn'">
       {{ isCollapsed ? '>>' : '<<' }}
     </button>

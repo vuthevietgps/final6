@@ -208,4 +208,158 @@ export class ProductService {
 
     return createdProducts;
   }
+
+  /**
+   * Get AI analysis statistics
+   */
+  async getAIAnalysisStats(fanpageId?: string): Promise<any> {
+    const matchStage: any = {};
+    
+    if (fanpageId) {
+      matchStage['fanpageVariations.fanpageId'] = new Types.ObjectId(fanpageId);
+    }
+
+    const stats = await this.productModel.aggregate([
+      { $match: matchStage },
+      {
+        $addFields: {
+          hasAIAnalysis: {
+            $gt: [
+              { $size: { $ifNull: ["$images", []] } },
+              0
+            ]
+          },
+          totalKeywords: {
+            $size: {
+              $reduce: {
+                input: "$images",
+                initialValue: [],
+                in: {
+                  $concatArrays: [
+                    "$$value",
+                    { $ifNull: ["$$this.aiAnalysis.keywords", []] }
+                  ]
+                }
+              }
+            }
+          },
+          avgConfidence: {
+            $avg: {
+              $map: {
+                input: "$images",
+                as: "img",
+                in: { $ifNull: ["$$img.aiAnalysis.confidence", 0] }
+              }
+            }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalProducts: { $sum: 1 },
+          productsWithAI: {
+            $sum: { $cond: ["$hasAIAnalysis", 1, 0] }
+          },
+          totalImages: {
+            $sum: { $size: { $ifNull: ["$images", []] } }
+          },
+          totalKeywords: { $sum: "$totalKeywords" },
+          avgConfidence: { $avg: "$avgConfidence" },
+          topKeywords: {
+            $push: {
+              $reduce: {
+                input: "$images",
+                initialValue: [],
+                in: {
+                  $concatArrays: [
+                    "$$value",
+                    { $ifNull: ["$$this.aiAnalysis.keywords", []] }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    ]);
+
+    const result = stats[0] || {
+      totalProducts: 0,
+      productsWithAI: 0,
+      totalImages: 0,
+      totalKeywords: 0,
+      avgConfidence: 0,
+      topKeywords: []
+    };
+
+    // Calculate keyword frequency
+    const keywordFreq = {};
+    result.topKeywords.flat().forEach(keyword => {
+      keywordFreq[keyword] = (keywordFreq[keyword] || 0) + 1;
+    });
+
+    const topKeywords = Object.entries(keywordFreq)
+      .sort(([,a], [,b]) => (b as number) - (a as number))
+      .slice(0, 10)
+      .map(([keyword, count]) => ({ keyword, count }));
+
+    return {
+      totalProducts: result.totalProducts,
+      productsWithAI: result.productsWithAI,
+      aiCoveragePercentage: result.totalProducts > 0 
+        ? Math.round((result.productsWithAI / result.totalProducts) * 100) 
+        : 0,
+      totalImages: result.totalImages,
+      totalKeywords: result.totalKeywords,
+      avgConfidence: Math.round((result.avgConfidence || 0) * 100) / 100,
+      topKeywords,
+      fanpageId
+    };
+  }
+
+  /**
+   * Update product with AI analysis results
+   */
+  async updateWithAIAnalysis(
+    productId: string, 
+    imageIndex: number, 
+    analysis: any
+  ): Promise<Product> {
+    const product = await this.findOne(productId);
+    
+    if (!product.images || !product.images[imageIndex]) {
+      throw new NotFoundException('Ảnh không tồn tại');
+    }
+
+    // Update specific image analysis
+    product.images[imageIndex].aiAnalysis = analysis;
+
+    // Update search keywords
+    const allKeywords = new Set<string>();
+    product.images.forEach(img => {
+      if (img.aiAnalysis?.keywords) {
+        img.aiAnalysis.keywords.forEach(keyword => allKeywords.add(keyword));
+      }
+    });
+
+    // Update AI description from available analysis
+    if (analysis.description && analysis.description !== 'Không thể tạo mô tả') {
+      product.aiDescription = analysis.description;
+    }
+
+    product.searchKeywords = Array.from(allKeywords);
+
+    // Use updateOne instead of save for document updates
+    await this.productModel.updateOne(
+      { _id: productId },
+      { 
+        images: product.images,
+        aiDescription: product.aiDescription,
+        searchKeywords: product.searchKeywords
+      }
+    );
+
+    return this.findOne(productId);
+  }
 }

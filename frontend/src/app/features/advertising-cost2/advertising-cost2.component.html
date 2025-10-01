@@ -2,6 +2,10 @@
   <div class="toolbar">
     <button class="btn btn-primary" (click)="addNew()">➕ Thêm mới</button>
     <button class="btn" (click)="load()">🔄 Làm mới</button>
+    <select [value]="filterAdAccountId()" (change)="filterAdAccountId.set($any($event.target).value); onFilterChange()">
+      <option value="all">Tất cả TK QC</option>
+      <option *ngFor="let a of adAccounts()" [value]="a._id">{{ a.name }} ({{ a.accountId }})</option>
+    </select>
   <button class="btn" (click)="downloadCsv()">⬇️ Tải xuống CSV</button>
   <label class="btn" for="csvInput">⬆️ Tải lên CSV</label>
   <input id="csvInput" type="file" accept=".csv,text/csv" (change)="onFileSelected($event)" style="display:none" />
@@ -13,7 +17,8 @@
     <thead>
       <tr>
         <th>Ngày (dd/MM/yyyy)</th>
-        <th>ID Nhóm quảng cáo</th>
+  <th>ID Nhóm quảng cáo</th>
+  <th>Tài khoản QC</th>
         <th>Đã chi</th>
         <th>CPM</th>
         <th>CPC</th>
@@ -29,6 +34,7 @@
         <td>
           <input type="text" [ngModel]="r.adGroupId" (keydown)="onEnter(r, 'adGroupId', $event)" (blur)="onBlur(r, 'adGroupId', $event)" />
         </td>
+        <td>{{ r.adAccountName ? (r.adAccountName + ' (' + r.adAccountAccountId + ')') : '-' }}</td>
         <td>
           <input type="number" step="0.01" [ngModel]="r.spentAmount" (keydown)="onEnter(r, 'spentAmount', $event)" (blur)="onBlur(r, 'spentAmount', $event)" />
         </td>

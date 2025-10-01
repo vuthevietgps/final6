@@ -1,10 +1,9 @@
 /**
  * File: product-profit-report/product-profit-report.controller.ts
- * Mục đích: Controller API cho báo cáo lợi nhuận sản phẩm theo ngày
+ * Mục đích: Controller API cho báo cáo lợi nhuận sản phẩm theo ngày từ Summary5
  */
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ProductProfitReportService } from './product-profit-report.service';
-import { ProductProfitFilterDto } from './dto/product-profit-filter.dto';
 import { JwtAuthGuard, RolesGuard } from '../auth/guards/auth.guard';
 import { RequirePermissions } from '../auth/decorators/auth.decorator';
 
@@ -19,8 +18,12 @@ export class ProductProfitReportController {
    */
   @Get()
   @RequirePermissions('reports')
-  async getProductProfitReport(@Query() filterDto: ProductProfitFilterDto) {
-    return this.productProfitReportService.getProductProfitReport(filterDto);
+  async getProductProfitReport(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('productName') productName?: string,
+  ) {
+    return this.productProfitReportService.getProductProfitReport({ from, to, productName });
   }
 
   /**
@@ -40,14 +43,18 @@ export class ProductProfitReportController {
    */
   @Get('summary')
   @RequirePermissions('reports')
-  async getSummary(@Query() filterDto: ProductProfitFilterDto) {
-    const report = await this.productProfitReportService.getProductProfitReport(filterDto);
+  async getSummary(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('productName') productName?: string,
+  ) {
+    const report = await this.productProfitReportService.getProductProfitReport({ from, to, productName });
     return {
       summary: report.summary,
-      productCount: report.products.length,
+      productCount: report.data.length,
       dateRange: {
-        from: report.dates[0] || null,
-        to: report.dates[report.dates.length - 1] || null,
+        from: report.dateRange.from,
+        to: report.dateRange.to,
         totalDays: report.dates.length
       }
     };

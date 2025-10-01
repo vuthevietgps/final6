@@ -5,6 +5,22 @@
       <button class="btn btn-primary" (click)="syncData()" [disabled]="loading()">
         {{ loading() ? 'Đang đồng bộ...' : '🔄 Đồng bộ dữ liệu' }}
       </button>
+      <button class="btn btn-warning" (click)="exportUnpaidToExcel()" [disabled]="loading()">
+        {{ loading() ? 'Đang xuất...' : '📋 Chưa Thanh Toán' }}
+      </button>
+      <button class="btn btn-info" (click)="exportManualPaymentTemplate()" [disabled]="loading()">
+        {{ loading() ? 'Đang xuất...' : '📄 Tải Template' }}
+      </button>
+      <div class="manual-payment-upload">
+        <input type="file" 
+               id="manual-payment-file" 
+               accept=".xlsx,.xls" 
+               (change)="onFileSelected($event)"
+               style="display: none;">
+        <button class="btn btn-success" (click)="triggerFileInput()" [disabled]="loading()">
+          {{ loading() ? 'Đang xử lý...' : '📤 Thanh Toán Tay' }}
+        </button>
+      </div>
     </div>
   </div>
 
@@ -34,82 +50,7 @@
     </div>
   </div>
 
-  <!-- Filter Toolbar (Summary1-like) -->
-  <div class="filter-toolbar">
-    <div class="filter-row">
-      <input class="form-control search-input" type="text" placeholder="Tìm kiếm KH/SĐT/Mã vận đơn"
-             [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)" />
-      <button class="btn btn-secondary" (click)="showFilters.set(!showFilters())">
-        {{ showFilters() ? '🔼 Ẩn Filter' : '🔽 Hiện Filter' }}
-      </button>
-      <button class="btn btn-primary" (click)="refresh()">🔄 Làm mới</button>
-    </div>
-
-    <div class="filter-panel" *ngIf="showFilters()">
-      <div class="filter-grid">
-        <!-- Advanced Filters -->
-        <div class="filter-group">
-          <label>Đại lý:</label>
-          <select [ngModel]="filter().agentId" (ngModelChange)="updateFilter('agentId', $event)">
-            <option value="">Tất cả đại lý</option>
-            <option *ngFor="let agent of agents()" [value]="agent._id">{{ agent.fullName }}</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <label>Sản phẩm:</label>
-          <select [ngModel]="filter().productId" (ngModelChange)="updateFilter('productId', $event)">
-            <option value="">Tất cả sản phẩm</option>
-            <option *ngFor="let product of products()" [value]="product._id">{{ product.name }}</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <label>Trạng thái sản xuất:</label>
-          <select [ngModel]="filter().productionStatus" (ngModelChange)="updateFilter('productionStatus', $event)">
-            <option value="">Tất cả trạng thái</option>
-            <option value="Đã trả kết quả">Đã trả kết quả</option>
-            <option value="Đang xử lý">Đang xử lý</option>
-            <option value="Chưa làm">Chưa làm</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <label>Trạng thái vận đơn:</label>
-          <select [ngModel]="filter().orderStatus" (ngModelChange)="updateFilter('orderStatus', $event)">
-            <option value="">Tất cả trạng thái</option>
-            <option value="Giao thành công">Giao thành công</option>
-            <option value="Đang vận chuyển">Đang vận chuyển</option>
-            <option value="Đang lấy hàng">Đang lấy hàng</option>
-            <option value="Chưa có mã vận đơn">Chưa có mã vận đơn</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <label>Từ ngày:</label>
-          <input type="date" [ngModel]="filter().startDate" (ngModelChange)="updateFilter('startDate', $event)" />
-        </div>
-        <div class="filter-group">
-          <label>Đến ngày:</label>
-          <input type="date" [ngModel]="filter().endDate" (ngModelChange)="updateFilter('endDate', $event)" />
-        </div>
-        <div class="filter-group">
-          <label>Sắp xếp theo:</label>
-          <select [ngModel]="filter().sortBy" (ngModelChange)="updateFilter('sortBy', $event)">
-            <option value="orderDate">Ngày tạo</option>
-            <option value="customerName">Tên khách hàng</option>
-          </select>
-        </div>
-        <div class="filter-group">
-          <label>Thứ tự:</label>
-          <select [ngModel]="filter().sortOrder" (ngModelChange)="updateFilter('sortOrder', $event)">
-            <option value="asc">Tăng dần</option>
-            <option value="desc">Giảm dần</option>
-          </select>
-        </div>
-      </div>
-      <div class="filter-actions">
-        <button class="btn btn-warning" (click)="filter.set({ page: 1, limit: 50, sortBy: 'orderDate', sortOrder: 'desc' }); searchTerm.set(''); loadData();">🔄 Reset Filter</button>
-        <div class="filter-info">Tìm thấy {{ totalRecords() }} kết quả</div>
-      </div>
-    </div>
-  </div>
+  <!-- Filter Toolbar removed per requirement -->
 
   <!-- Error message -->
   <div class="alert alert-danger" *ngIf="error()">

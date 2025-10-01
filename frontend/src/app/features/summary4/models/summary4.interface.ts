@@ -41,12 +41,6 @@ export interface Product {
 }
 
 export interface Summary4Filter {
-  agentId?: string;
-  productId?: string;
-  productionStatus?: string;
-  orderStatus?: string;
-  startDate?: string;
-  endDate?: string;
   page?: number;
   limit?: number;
   sortBy?: string;
@@ -58,6 +52,8 @@ export interface Summary4Response {
   total: number;
   page: number;
   totalPages: number;
+  requestedPage?: number;
+  redirectedToPage?: number;
 }
 
 export interface Summary4Stats {

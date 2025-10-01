@@ -50,11 +50,27 @@ export class QuoteComponent implements OnInit {
   ) {
     this.quoteForm = this.fb.group({
       productId: ['', Validators.required],
-      agentId: ['', Validators.required],
-      price: [0, [Validators.required, Validators.min(0)]],
+      agentId: [''], // Sẽ được validate động
+      applyToAllAgents: [false],
+      unitPrice: [0, [Validators.required, Validators.min(0)]],
       status: ['Chờ duyệt', Validators.required],
-      expiryDate: [''],
+      validFrom: ['', Validators.required],
+      validUntil: ['', Validators.required],
       notes: ['', Validators.maxLength(500)]
+    });
+
+    // Lắng nghe thay đổi applyToAllAgents để cập nhật validation
+    this.quoteForm.get('applyToAllAgents')?.valueChanges.subscribe(applyToAll => {
+      const agentIdControl = this.quoteForm.get('agentId');
+      if (applyToAll) {
+        // Khi chọn apply to all, bỏ validation và clear value
+        agentIdControl?.clearValidators();
+        agentIdControl?.setValue('');
+      } else {
+        // Khi không chọn apply to all, yêu cầu chọn agent
+        agentIdControl?.setValidators([Validators.required]);
+      }
+      agentIdControl?.updateValueAndValidity();
     });
   }
 
@@ -127,9 +143,11 @@ export class QuoteComponent implements OnInit {
     this.quoteForm.reset({
       productId: '',
       agentId: '',
-      price: 0,
+      applyToAllAgents: false,
+      unitPrice: 0,
       status: 'Chờ duyệt',
-      expiryDate: '',
+      validFrom: '',
+      validUntil: '',
       notes: ''
     });
     this.showModal();
@@ -139,14 +157,17 @@ export class QuoteComponent implements OnInit {
     this.isEditMode.set(true);
     this.currentQuoteId.set(quote._id || null);
     
-    const expiryDate = quote.expiryDate ? new Date(quote.expiryDate).toISOString().split('T')[0] : '';
+    const validFrom = quote.validFrom ? new Date(quote.validFrom).toISOString().split('T')[0] : '';
+    const validUntil = quote.validUntil ? new Date(quote.validUntil).toISOString().split('T')[0] : '';
     
     this.quoteForm.patchValue({
       productId: typeof quote.productId === 'string' ? quote.productId : quote.productId._id,
       agentId: typeof quote.agentId === 'string' ? quote.agentId : quote.agentId._id,
-      price: quote.price,
+      applyToAllAgents: false, // Edit mode không áp dụng bulk
+      unitPrice: quote.unitPrice,
       status: quote.status,
-      expiryDate: expiryDate,
+      validFrom: validFrom,
+      validUntil: validUntil,
       notes: quote.notes || ''
     });
     this.showModal();
@@ -158,40 +179,58 @@ export class QuoteComponent implements OnInit {
       
       try {
         const formData: any = { ...this.quoteForm.value };
-        // Nếu expiryDate là chuỗi rỗng -> bỏ để backend dùng default
-        if (typeof formData.expiryDate === 'string' && !formData.expiryDate.trim()) {
-          delete formData.expiryDate;
+        
+        // Xử lý logic applyToAllAgents - nếu true thì xóa agentId
+        if (formData.applyToAllAgents) {
+          delete formData.agentId; // Xóa agentId khi áp dụng cho tất cả
         }
-        // Ép kiểu price sang number phòng trường hợp input là chuỗi
-        if (formData.price !== undefined) {
-          const numeric = Number(String(formData.price).replace(/[^0-9.-]/g, ''));
-          formData.price = isNaN(numeric) ? 0 : numeric;
+        
+        // Ép kiểu unitPrice sang number phòng trường hợp input là chuỗi
+        if (formData.unitPrice !== undefined) {
+          const numeric = Number(String(formData.unitPrice).replace(/[^0-9.-]/g, ''));
+          formData.unitPrice = isNaN(numeric) ? 0 : numeric;
         }
-        // Đảm bảo id là chuỗi
+        
+        // Đảm bảo productId là chuỗi
         if (formData.productId && typeof formData.productId !== 'string') {
           formData.productId = String(formData.productId);
         }
-        if (formData.agentId && typeof formData.agentId !== 'string') {
+        
+        // Chỉ xử lý agentId khi không phải applyToAllAgents
+        if (!formData.applyToAllAgents && formData.agentId && typeof formData.agentId !== 'string') {
           formData.agentId = String(formData.agentId);
         }
+        
         // Bước 1: Lưu và nhận kết quả
         try {
-          let saved: Quote | undefined;
+          let saved: Quote | Quote[] | undefined;
           if (this.isEditMode() && this.currentQuoteId()) {
-            saved = await this.quoteService.updateQuote(this.currentQuoteId()!, formData).toPromise();
+            const updateResult = await this.quoteService.updateQuote(this.currentQuoteId()!, formData).toPromise();
             // Cập nhật ngay trong danh sách hiện tại
-            if (saved) {
-              this.quotes.update(list => list.map(q => (q._id === saved!._id ? saved! : q)));
+            if (updateResult) {
+              this.quotes.update(list => list.map(q => (q._id === updateResult._id ? updateResult : q)));
             }
           } else {
             saved = await this.quoteService.createQuote(formData as CreateQuote).toPromise();
             // Thêm mới vào đầu danh sách để thấy ngay
             if (saved) {
-              // Đảm bảo có createdAt để sắp thứ tự, fallback tạm thời nếu thiếu
-              if (!saved.createdAt) {
-                saved.createdAt = new Date().toISOString();
+              if (Array.isArray(saved)) {
+                // Bulk creation - thêm tất cả vào danh sách
+                const quotesToAdd = saved.map(quote => {
+                  if (!quote.createdAt) {
+                    quote.createdAt = new Date().toISOString();
+                  }
+                  return quote;
+                });
+                this.quotes.update(list => [...quotesToAdd, ...list]);
+              } else {
+                // Single creation - thêm một quote
+                const singleQuote = saved as Quote;
+                if (!singleQuote.createdAt) {
+                  singleQuote.createdAt = new Date().toISOString();
+                }
+                this.quotes.update(list => [singleQuote, ...list]);
               }
-              this.quotes.update(list => [saved!, ...list]);
             }
           }
         } catch (error) {
@@ -273,11 +312,11 @@ export class QuoteComponent implements OnInit {
     return statusOption ? statusOption.color : '#95a5a6';
   }
 
-  formatPrice(price: number): string {
+  formatPrice(unitPrice: number): string {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
       currency: 'VND'
-    }).format(price);
+    }).format(unitPrice);
   }
 
   formatDate(date: string | undefined | null): string {
@@ -299,6 +338,16 @@ export class QuoteComponent implements OnInit {
   onStatusChange(event: Event) {
     const target = event.target as HTMLSelectElement;
     this.statusFilter.set(target.value);
+  }
+
+  onApplyToAllChanged(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const isChecked = target.checked;
+    
+    // Reset agentId khi toggle applyToAllAgents
+    if (isChecked) {
+      this.quoteForm.get('agentId')?.setValue('');
+    }
   }
 
   private showModal() {

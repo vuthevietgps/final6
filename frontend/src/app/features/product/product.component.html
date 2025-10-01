@@ -114,6 +114,7 @@
           <th>Danh Mục</th>
           <th>Màu Sắc</th>
           <th>Giá Nhập</th>
+          <th>Link Tài Nguyên</th>
           <th>Trạng Thái</th>
           <th>Thao Tác</th>
         </tr>
@@ -138,6 +139,14 @@
             </div>
           </td>
           <td class="price-cell">{{ formatCurrency(product.importPrice) }}</td>
+          <td class="resource-link-cell">
+            <div *ngIf="product.resourceLink" class="resource-link">
+              <a [href]="product.resourceLink" target="_blank" rel="noopener noreferrer" title="Mở link tài nguyên">
+                🔗 Link
+              </a>
+            </div>
+            <span *ngIf="!product.resourceLink" class="no-link">-</span>
+          </td>
           <td class="status-cell">
             <span class="status-badge" [class]="product.status === 'Hoạt động' ? 'active' : 'inactive'">
               {{ product.status }}
@@ -323,6 +332,17 @@
             placeholder="Ghi chú về sản phẩm..."
           ></textarea>
         </div>
+
+        <div class="form-group full-width">
+          <label for="resourceLink">Link Tài Nguyên</label>
+          <input
+            type="url"
+            id="resourceLink"
+            [value]="formData().resourceLink"
+            (input)="onInputChange('resourceLink', $event)"
+            placeholder="https://example.com/resource"
+          />
+        </div>
       </div>
 
       <div class="modal-actions">
@@ -493,6 +513,17 @@
             (input)="onInputChange('notes', $event)"
             placeholder="Ghi chú về sản phẩm..."
           ></textarea>
+        </div>
+
+        <div class="form-group full-width">
+          <label for="edit-resourceLink">Link Tài Nguyên</label>
+          <input
+            type="url"
+            id="edit-resourceLink"
+            [value]="formData().resourceLink"
+            (input)="onInputChange('resourceLink', $event)"
+            placeholder="https://example.com/resource"
+          />
         </div>
       </div>
 

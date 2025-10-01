@@ -8,11 +8,11 @@ export interface ProductProfitFilter {
   period?: 'week' | '10days' | '30days' | 'lastMonth' | 'thisMonth' | 'custom';
   fromDate?: string;
   toDate?: string;
-  productId?: string;
+  productName?: string;
 }
 
 export interface Product {
-  id: string;
+  _id: string;
   name: string;
 }
 

@@ -7,12 +7,13 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { timeout } from 'rxjs/operators';
 import { User, CreateUserDto, UpdateUserDto } from './user.model';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class UserService {
-  private apiUrl = 'http://localhost:3000/users';
+  private apiUrl = `${environment.apiUrl}/users`;
 
   constructor(private http: HttpClient) {}
 
@@ -24,27 +25,27 @@ export class UserService {
     if (active !== undefined) {
       params = params.set('active', active.toString());
     }
-    return this.http.get<User[]>(this.apiUrl, { params });
+    return this.http.get<User[]>(this.apiUrl, { params, withCredentials: true });
   }
 
   getUser(id: string): Observable<User> {
-  return this.http.get<User>(`${this.apiUrl}/${id}`).pipe(timeout(10000));
+  return this.http.get<User>(`${this.apiUrl}/${id}`, { withCredentials: true }).pipe(timeout(10000));
   }
 
   createUser(user: CreateUserDto): Observable<User> {
-    return this.http.post<User>(this.apiUrl, user);
+    return this.http.post<User>(this.apiUrl, user, { withCredentials: true });
   }
 
   updateUser(id: string, user: UpdateUserDto): Observable<User> {
-    return this.http.patch<User>(`${this.apiUrl}/${id}`, user);
+    return this.http.patch<User>(`${this.apiUrl}/${id}`, user, { withCredentials: true });
   }
 
   deleteUser(id: string): Observable<User> {
-    return this.http.delete<User>(`${this.apiUrl}/${id}`);
+    return this.http.delete<User>(`${this.apiUrl}/${id}`, { withCredentials: true });
   }
 
   getUserByEmail(email: string): Observable<User> {
-    return this.http.get<User>(`${this.apiUrl}/email/${email}`);
+    return this.http.get<User>(`${this.apiUrl}/email/${email}`, { withCredentials: true });
   }
 
   /**
@@ -52,6 +53,6 @@ export class UserService {
    * Backend bảo vệ bằng quyền 'orders'.
    */
   getAgents(): Observable<User[]> {
-    return this.http.get<User[]>(`${this.apiUrl}/agents`);
+    return this.http.get<User[]>(`${this.apiUrl}/agents`, { withCredentials: true });
   }
 }

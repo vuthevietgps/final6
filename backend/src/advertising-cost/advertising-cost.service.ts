@@ -6,6 +6,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AdvertisingCost, AdvertisingCostDocument } from './schemas/advertising-cost.schema';
+import { AdGroup, AdGroupDocument } from '../ad-group/schemas/ad-group.schema';
+import { AdAccount, AdAccountDocument } from '../ad-account/schemas/ad-account.schema';
 import { CreateAdvertisingCostDto } from './dto/create-advertising-cost.dto';
 import { UpdateAdvertisingCostDto } from './dto/update-advertising-cost.dto';
 
@@ -14,6 +16,10 @@ export class AdvertisingCostService {
   constructor(
     @InjectModel(AdvertisingCost.name)
     private readonly model: Model<AdvertisingCostDocument>,
+    @InjectModel(AdGroup.name)
+    private readonly adGroupModel: Model<AdGroupDocument>,
+    @InjectModel(AdAccount.name)
+    private readonly adAccountModel: Model<AdAccountDocument>,
   ) {}
 
   async create(dto: CreateAdvertisingCostDto): Promise<AdvertisingCost> {
@@ -29,8 +35,45 @@ export class AdvertisingCostService {
     return created.save();
   }
 
-  async findAll(): Promise<AdvertisingCost[]> {
-    return this.model.find().sort({ date: -1, createdAt: -1 }).lean();
+  async findAll(query?: any): Promise<any[]> {
+    // Optional filter by adAccountId via associated adGroup
+    let adGroupIdFilter: string[] | undefined;
+    if (query?.adAccountId) {
+      const groups = await this.adGroupModel.find({ adAccountId: query.adAccountId }).select('adGroupId').lean();
+      adGroupIdFilter = groups.map(g => g.adGroupId);
+      if (adGroupIdFilter.length === 0) {
+        return []; // No groups => no costs
+      }
+    }
+
+    const findCond: any = {};
+    if (adGroupIdFilter) findCond.adGroupId = { $in: adGroupIdFilter };
+
+    const costs = await this.model.find(findCond).sort({ date: -1, createdAt: -1 }).lean();
+
+    // Enrich with ad account info (name + accountId) by joining through adGroup
+    if (costs.length === 0) return costs as any[];
+    const uniqueAdGroupIds = Array.from(new Set(costs.map(c => c.adGroupId)));
+    const adGroups = await this.adGroupModel.find({ adGroupId: { $in: uniqueAdGroupIds } })
+      .select('adGroupId adAccountId')
+      .lean();
+    const adAccountIds = Array.from(new Set(adGroups.map(g => String(g.adAccountId))));
+    const adAccounts = await this.adAccountModel.find({ _id: { $in: adAccountIds } })
+      .select('name accountId')
+      .lean();
+    const adGroupMap = new Map(adGroups.map(g => [g.adGroupId, g]));
+    const adAccountMap = new Map(adAccounts.map(a => [String(a._id), a]));
+
+    return costs.map(c => {
+      const grp: any = adGroupMap.get(c.adGroupId);
+      const acc: any = grp ? adAccountMap.get(String(grp.adAccountId)) : null;
+      return {
+        ...c,
+        adAccountId: grp?.adAccountId ? String(grp.adAccountId) : undefined,
+        adAccountName: acc?.name,
+        adAccountAccountId: acc?.accountId,
+      };
+    });
   }
 
   async findOne(id: string): Promise<AdvertisingCost> {

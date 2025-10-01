@@ -118,9 +118,7 @@
               </select>
             </td>
             <td class="col-wide">
-              <select [ngModel]="o.adGroupId" (change)="onSelectUpdate(o, 'adGroupId', $event)">
-                <option *ngFor="let g of adGroups()" [value]="g._id">{{ g.name }}</option>
-              </select>
+              <input type="text" [ngModel]="o.adGroupId" (ngModelChange)="o.adGroupId=$event" list="adGroupOptions" (blur)="onAdGroupIdBlur(o, $event)" placeholder="Nhập hoặc dán ID nhóm QC" />
             </td>
             <td class="col-active text-center">
               <input type="checkbox" [ngModel]="o.isActive" (change)="onInputUpdate(o, 'isActive', $event)" />
@@ -155,6 +153,9 @@
           </tr>
         </tbody>
       </table>
+      <datalist id="adGroupOptions">
+        <option *ngFor="let g of adGroups()" [value]="g._id"></option>
+      </datalist>
     </div>
   </div>
 

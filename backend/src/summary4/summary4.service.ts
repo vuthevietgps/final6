@@ -1,12 +1,18 @@
+/**
+ * Summary4 Service - Báo cáo tổng hợp với tính toán chi phí và lợi nhuận
+ * Features: Sync từ TestOrder2, cleanup orphaned records, export Excel
+ */
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import * as XLSX from 'xlsx';
+
 import { Summary4, Summary4Document } from './schemas/summary4.schema';
-import { Summary5Service } from '../summary5/summary5.service';
 import { TestOrder2, TestOrder2Document } from '../test-order2/schemas/test-order2.schema';
 import { Quote, QuoteDocument } from '../quote/schemas/quote.schema';
 import { User, UserDocument } from '../user/user.schema';
 import { Product, ProductDocument } from '../product/schemas/product.schema';
+import { Summary5Service } from '../summary5/summary5.service';
 import { Summary4FilterDto } from './dto/summary4-filter.dto';
 import { UpdateManualPaymentDto } from './dto/update-manual-payment.dto';
 
@@ -16,72 +22,50 @@ export class Summary4Service {
   private readonly debugEnabled = process.env.DEBUG_SUMMARY4 === 'true';
 
   constructor(
-    @InjectModel(Summary4.name) private summary4Model: Model<Summary4Document>,
-    @InjectModel(TestOrder2.name) private testOrder2Model: Model<TestOrder2Document>,
-    @InjectModel(Quote.name) private quoteModel: Model<QuoteDocument>,
-    @InjectModel(User.name) private userModel: Model<UserDocument>,
-    @InjectModel(Product.name) private productModel: Model<ProductDocument>,
+    @InjectModel(Summary4.name) private readonly summary4Model: Model<Summary4Document>,
+    @InjectModel(TestOrder2.name) private readonly testOrder2Model: Model<TestOrder2Document>,
+    @InjectModel(Quote.name) private readonly quoteModel: Model<QuoteDocument>,
+    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    @InjectModel(Product.name) private readonly productModel: Model<ProductDocument>,
     private readonly summary5Service: Summary5Service,
   ) {}
 
   async findAll(filter: Summary4FilterDto = {}) {
-    const {
-      agentId,
-      productId,
-      productionStatus,
-      orderStatus,
-      startDate,
-      endDate,
-      page = 1,
-      limit = 50,
-      sortBy = 'orderDate',
-      sortOrder = 'desc'
-    } = filter;
+    // Sanitize and validate input parameters
+    const page = Math.max(1, Math.floor(filter.page || 1));
+    const limit = Math.max(1, Math.min(200, Math.floor(filter.limit || 50)));
+    const sortBy = filter.sortBy || 'orderDate';
+    const sortOrder = filter.sortOrder === 'asc' ? 'asc' : 'desc';
 
-    const query: any = { isActive: true };
-
-  if (agentId) query.agentId = new Types.ObjectId(agentId);
-  if (productId) query.productId = new Types.ObjectId(productId);
-  // Case-insensitive match for statuses to tolerate casing variations in data
-  const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  if (productionStatus) query.productionStatus = new RegExp(`^${escapeRegex(productionStatus)}$`, 'i');
-  if (orderStatus) query.orderStatus = new RegExp(`^${escapeRegex(orderStatus)}$`, 'i');
-    if (startDate || endDate) {
-      query.orderDate = {};
-      if (startDate) {
-        const d = new Date(startDate);
-        if (!isNaN(d.getTime())) query.orderDate.$gte = d;
-      }
-      if (endDate) {
-        const d = new Date(endDate);
-        if (!isNaN(d.getTime())) {
-          // Make endDate inclusive (end of day 23:59:59.999)
-          d.setHours(23, 59, 59, 999);
-          query.orderDate.$lte = d;
-        }
-      }
-    }
-
-    const sortOption = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
+    const sortOption = { [sortBy]: sortOrder === 'asc' ? 1 : -1 } as any;
     const skip = (page - 1) * limit;
 
-    const [data, total] = await Promise.all([
-      this.summary4Model
-        .find(query)
-        .sort(sortOption as any)
-        .skip(skip)
-        .limit(limit)
-        .populate('agentId', 'fullName email role')
-        .populate('productId', 'name sku price')
-        .exec(),
-      this.summary4Model.countDocuments(query).exec()
-    ]);
+    const baseQuery = { isActive: true };
 
-    return {
-      data,
-      total,
-      page,
-      totalPages: Math.ceil(total / limit)
+    // Get total count first
+    const total = await this.summary4Model.countDocuments(baseQuery).exec();
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+
+    // If requested page > total pages, redirect to last valid page
+    const validPage = Math.min(page, totalPages);
+    const validSkip = (validPage - 1) * limit;
+
+    const data = total > 0 ? await this.summary4Model
+      .find(baseQuery)
+      .sort(sortOption)
+      .skip(validSkip)
+      .limit(limit)
+      .populate('agentId', 'fullName email role')
+      .populate('productId', 'name sku price')
+      .exec() : [];
+
+    return { 
+      data, 
+      total, 
+      page: validPage, // Return the valid page we actually used
+      totalPages,
+      requestedPage: page, // Also return what was originally requested for debugging
+      ...(page !== validPage && { redirectedToPage: validPage }) // Indicate if we redirected
     };
   }
 
@@ -218,23 +202,35 @@ export class Summary4Service {
           const agentName = (order.agentId as any)?.fullName || 'Unknown Agent';
           const productName = (order.productId as any)?.name || 'Unknown Product';
 
-          // Tính toán báo giá đã duyệt - Use string IDs like Quote service does
+          // Tính toán báo giá đã duyệt - Fix issue with populated vs non-populated fields
           const agentIdString = ((order.agentId as any)?._id || order.agentId)?.toString();
           const productIdString = ((order.productId as any)?._id || order.productId)?.toString();
           
           if (this.debugEnabled) this.logger.debug(`Looking for quote: agentId=${agentIdString}, productId=${productIdString}, status='Đã duyệt'`);
           
-          // Use the same query pattern as Quote service (string-based)
+          // Query with both ObjectId and string support to handle database inconsistency
           const approvedQuote = await this.quoteModel.findOne({
-            agentId: agentIdString,
-            productId: productIdString,
-            status: 'Đã duyệt',
-            isActive: true
+            $and: [
+              {
+                $or: [
+                  { agentId: agentIdString },
+                  { agentId: new Types.ObjectId(agentIdString) }
+                ]
+              },
+              {
+                $or: [
+                  { productId: productIdString },
+                  { productId: new Types.ObjectId(productIdString) }
+                ]
+              },
+              { status: 'Đã duyệt' },
+              { isActive: true }
+            ]
           }).exec();
           
-          if (this.debugEnabled) this.logger.debug(`Found quote price: ${approvedQuote?.price || 0}`);
+          if (this.debugEnabled) this.logger.debug(`Found quote price: ${approvedQuote?.unitPrice || 0}`);
 
-          const approvedQuotePrice = approvedQuote?.price || 0;
+          const approvedQuotePrice = approvedQuote?.unitPrice || 0;
 
           // Logic tính toán theo yêu cầu
           const mustPayToCompany = order.productionStatus === 'Đã trả kết quả' 
@@ -245,7 +241,13 @@ export class Summary4Service {
             ? order.codAmount 
             : 0;
 
-          const manualPayment = existingSummary?.manualPayment || 0;
+          // Manual payment priority logic:
+          // 1. Use TestOrder2.manualPayment if exists (user updated via TestOrder2)  
+          // 2. Fallback to existing Summary4.manualPayment (user updated via Summary4 directly)
+          // 3. Default to 0
+          const manualPayment = order.manualPayment || existingSummary?.manualPayment || 0;
+          
+          // Calculate what needs to be paid: COD received - amount due to company - manual payments
           const needToPay = paidToCompany - mustPayToCompany - manualPayment;
 
           const summaryData = {
@@ -344,5 +346,509 @@ export class Summary4Service {
       totalNeedToPay: totalNeedToPay[0]?.total || 0,
       timestamp: new Date()
     };
+  }
+
+  // Agents listing was removed as part of filter/search cleanup
+
+  async exportUnpaidToExcel(_: Summary4FilterDto = {}): Promise<Buffer> {
+    this.logger.log('Xuất Excel các khoản chưa thanh toán...');
+
+    const unpaidData = await this.summary4Model
+      .find({ isActive: true, needToPay: { $ne: 0 } })
+      .select('_id testOrder2Id manualPayment needToPay customerName agentName product orderDate')
+      .sort({ needToPay: -1 }) // Sắp xếp theo needToPay giảm dần
+      .exec();
+
+    if (!unpaidData || unpaidData.length === 0) {
+      this.logger.warn('Không có dữ liệu chưa thanh toán để xuất');
+    }
+
+    // Tạo workbook và worksheet
+    const workbook = XLSX.utils.book_new();
+    
+    // Chuẩn bị dữ liệu cho Excel
+    const excelData = unpaidData.map((item, index) => ({
+      'STT': index + 1,
+      'ID': item._id.toString(),
+      'TestOrder2 ID': item.testOrder2Id.toString(),
+      'Khách hàng': item.customerName || '',
+      'Sản phẩm': item.product || '',
+      'Đại lý': item.agentName || '',
+      'Ngày đặt hàng': item.orderDate ? new Date(item.orderDate).toLocaleDateString('vi-VN') : '',
+      'Thanh toán thủ công': item.manualPayment || 0,
+      'Cần thanh toán': item.needToPay || 0
+    }));
+
+    // Tạo worksheet từ dữ liệu
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+    // Thiết lập độ rộng cột
+    const columnWidths = [
+      { wch: 5 },   // STT
+      { wch: 25 },  // ID
+      { wch: 25 },  // TestOrder2 ID
+      { wch: 20 },  // Khách hàng
+      { wch: 20 },  // Sản phẩm
+      { wch: 20 },  // Đại lý
+      { wch: 15 },  // Ngày đặt hàng
+      { wch: 20 },  // Thanh toán thủ công
+      { wch: 20 },  // Cần thanh toán
+    ];
+    worksheet['!cols'] = columnWidths;
+
+    // Thêm worksheet vào workbook
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Chưa Thanh Toán');
+
+    // Tạo buffer từ workbook
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    
+    this.logger.log(`Xuất Excel thành công: ${unpaidData.length} bản ghi`);
+    return buffer;
+  }
+
+  async exportManualPaymentTemplate(_: Summary4FilterDto = {}): Promise<Buffer> {
+    this.logger.log('Xuất template thanh toán tay...');
+
+    // Lấy tất cả dữ liệu đang active (không filter)
+    const templateData = await this.summary4Model
+      .find({ isActive: true })
+      .select('_id testOrder2Id manualPayment customerName agentName product orderDate')
+      .sort({ orderDate: -1 })
+      .exec();
+
+    // Tạo workbook và worksheet
+    const workbook = XLSX.utils.book_new();
+    
+    // Chuẩn bị dữ liệu template
+    const excelData = templateData.map((item, index) => ({
+      'STT': index + 1,
+      '_id': item._id.toString(),
+      'TestOrder2ID': item.testOrder2Id.toString(),
+      'manualPayment': item.manualPayment || 0,
+      'Khách hàng (chỉ để tham khảo)': item.customerName || '',
+      'Đại lý (chỉ để tham khảo)': item.agentName || '',
+      'Sản phẩm (chỉ để tham khảo)': item.product || '',
+      'Ngày đặt hàng (chỉ để tham khảo)': item.orderDate ? new Date(item.orderDate).toLocaleDateString('vi-VN') : ''
+    }));
+
+    // Thêm hàng hướng dẫn ở đầu
+    const instructionRow = {
+      'STT': 'HƯỚNG DẪN:',
+      '_id': 'KHÔNG ĐƯỢC SỬA cột này',
+      'TestOrder2ID': 'KHÔNG ĐƯỢC SỬA cột này', 
+      'manualPayment': 'CHỈ SỬA cột này',
+      'Khách hàng (chỉ để tham khảo)': 'Các cột bên phải chỉ để tham khảo',
+      'Đại lý (chỉ để tham khảo)': 'không ảnh hưởng đến import',
+      'Sản phẩm (chỉ để tham khảo)': '',
+      'Ngày đặt hàng (chỉ để tham khảo)': ''
+    };
+
+    const finalExcelData = [instructionRow, ...excelData];
+
+    // Tạo worksheet từ dữ liệu
+    const worksheet = XLSX.utils.json_to_sheet(finalExcelData);
+
+    // Thiết lập độ rộng cột
+    const columnWidths = [
+      { wch: 5 },   // STT
+      { wch: 25 },  // _id
+      { wch: 25 },  // TestOrder2ID
+      { wch: 15 },  // manualPayment
+      { wch: 25 },  // Khách hàng
+      { wch: 20 },  // Đại lý
+      { wch: 20 },  // Sản phẩm
+      { wch: 15 },  // Ngày đặt hàng
+    ];
+    worksheet['!cols'] = columnWidths;
+
+    // Thêm worksheet vào workbook
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Template Thanh Toán Tay');
+
+    // Tạo buffer từ workbook
+    const excelBuffer = XLSX.write(workbook, { 
+      type: 'buffer', 
+      bookType: 'xlsx',
+      compression: true 
+    });
+
+    this.logger.log(`Xuất template thành công: ${templateData.length} bản ghi`);
+    return excelBuffer;
+  }
+
+  async importManualPaymentFromExcel(fileBuffer: Buffer): Promise<{processed: number; updated: number; errors: string[]}> {
+    this.logger.log('Bắt đầu import thanh toán tay từ Excel...');
+    const result = { processed: 0, updated: 0, errors: [] };
+
+    try {
+      // Đọc file Excel
+      const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      
+      // Chuyển đổi thành JSON
+      const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+      
+      if (rawData.length < 2) {
+        throw new Error('File Excel không có dữ liệu hoặc chỉ có header');
+      }
+
+      // Lấy header row để tìm vị trí các cột
+      const headerRow = rawData[0];
+      const idIndex = headerRow.findIndex(h => h === '_id');
+      const manualPaymentIndex = headerRow.findIndex(h => h === 'manualPayment');
+
+      if (idIndex === -1) {
+        throw new Error('Không tìm thấy cột _id trong file Excel');
+      }
+      if (manualPaymentIndex === -1) {
+        throw new Error('Không tìm thấy cột manualPayment trong file Excel');
+      }
+
+      // Xử lý từng dòng dữ liệu (bỏ qua header và instruction row)
+      const dataRows = rawData.slice(2); // Bỏ qua header và instruction row
+      
+      for (let i = 0; i < dataRows.length; i++) {
+        const row = dataRows[i];
+        result.processed++;
+
+        try {
+          const id = row[idIndex];
+          const manualPayment = row[manualPaymentIndex];
+
+          // Validate dữ liệu
+          if (!id) {
+            result.errors.push(`Dòng ${i + 3}: Thiếu _id`);
+            continue;
+          }
+
+          if (manualPayment === undefined || manualPayment === null) {
+            result.errors.push(`Dòng ${i + 3}: Thiếu manualPayment`);
+            continue;
+          }
+
+          // Chuyển đổi manualPayment thành number
+          const manualPaymentValue = Number(manualPayment);
+          if (isNaN(manualPaymentValue)) {
+            result.errors.push(`Dòng ${i + 3}: manualPayment phải là số (hiện tại: ${manualPayment})`);
+            continue;
+          }
+
+          // Tìm và cập nhật record
+          const summary = await this.summary4Model.findById(id).exec();
+          if (!summary) {
+            result.errors.push(`Dòng ${i + 3}: Không tìm thấy record với _id: ${id}`);
+            continue;
+          }
+
+          // Cập nhật manualPayment và tính lại needToPay
+          summary.manualPayment = manualPaymentValue;
+          summary.needToPay = summary.paidToCompany - summary.mustPayToCompany - manualPaymentValue;
+
+          await summary.save();
+          result.updated++;
+
+        } catch (error) {
+          result.errors.push(`Dòng ${i + 3}: ${error.message}`);
+        }
+      }
+
+      // Trigger Summary5 sync sau khi import xong
+      try {
+        await this.summary5Service.sync({});
+      } catch (e) {
+        this.logger.warn(`Summary5 sync failed after manual payment import: ${e?.message || e}`);
+      }
+
+      this.logger.log(`Hoàn thành import: ${result.updated}/${result.processed} bản ghi được cập nhật`);
+      return result;
+
+    } catch (error) {
+      this.logger.error('Lỗi import thanh toán tay:', error);
+      result.errors.push(`Lỗi chung: ${error.message}`);
+      return result;
+    }
+  }
+
+  /**
+   * SMART CLEANUP: Tìm và xóa records orphaned (không có testOrder2 tương ứng)
+   * nhưng giữ lại records có manualPayment ≠ 0 để bảo vệ dữ liệu quan trọng
+   */
+  async cleanupOrphanedRecords(options: { 
+    dryRun?: boolean, 
+    preserveManualPayment?: boolean 
+  } = {}): Promise<{
+    totalOrphaned: number;
+    safeToDelete: number;
+    needsReview: number;
+    deleted: number;
+    preservedRecords: Array<{
+      _id: string;
+      testOrder2Id: string;
+      manualPayment: number;
+      customerName: string;
+      agentName: string;
+    }>;
+    deletedRecords?: Array<{
+      _id: string;
+      testOrder2Id: string;
+      customerName: string;
+    }>;
+  }> {
+    const { dryRun = true, preserveManualPayment = true } = options;
+    
+    this.logger.log(`🧹 Bắt đầu SMART CLEANUP - DryRun: ${dryRun}, PreserveManualPayment: ${preserveManualPayment}`);
+
+    // Tìm tất cả records trong Summary4 không có testOrder2 tương ứng
+    const orphanedRecords = await this.summary4Model.aggregate([
+      {
+        $lookup: {
+          from: 'ordertest2', // MongoDB collection name - FIXED!
+          let: { testOrder2Id: '$testOrder2Id' },
+          pipeline: [
+            { 
+              $match: { 
+                $expr: { 
+                  $eq: ['$_id', { $toObjectId: '$$testOrder2Id' }] 
+                } 
+              } 
+            }
+          ],
+          as: 'testOrder2Match'
+        }
+      },
+      { $match: { testOrder2Match: { $size: 0 } } }, // Không tìm thấy testOrder2
+      {
+        $project: {
+          _id: 1,
+          testOrder2Id: 1,
+          manualPayment: { $ifNull: ['$manualPayment', 0] },
+          customerName: 1,
+          agentName: 1,
+          orderDate: 1
+        }
+      }
+    ]).exec();
+
+    this.logger.log(`📊 Tìm thấy ${orphanedRecords.length} records orphaned`);
+
+    // Phân loại records theo mức độ rủi ro
+    const safeToDelete = orphanedRecords.filter(r => r.manualPayment === 0);
+    const needsReview = orphanedRecords.filter(r => r.manualPayment !== 0);
+
+    this.logger.log(`🟢 An toàn xóa: ${safeToDelete.length} records (manualPayment = 0)`);
+    this.logger.log(`🟡 Cần xem xét: ${needsReview.length} records (manualPayment ≠ 0)`);
+
+    let deleted = 0;
+    let deletedRecords = [];
+
+    // Thực hiện xóa nếu không phải dry-run
+    if (!dryRun) {
+      const recordsToDelete = preserveManualPayment ? safeToDelete : orphanedRecords;
+      
+      if (recordsToDelete.length > 0) {
+        const deleteIds = recordsToDelete.map(r => r._id);
+        const deleteTestOrder2Ids = recordsToDelete.map(r => r._id);
+        
+        // Xóa từ Summary4
+        const summary4DeleteResult = await this.summary4Model.deleteMany({ 
+          _id: { $in: deleteIds } 
+        }).exec();
+        
+        // Xóa từ Summary5 (theo _id vì Summary5 cũng có _id tương ứng)
+        const summary5DeleteResult = await this.summary5Service['s5Model'].deleteMany({ 
+          _id: { $in: deleteTestOrder2Ids } 
+        }).exec();
+        
+        deleted = summary4DeleteResult.deletedCount || 0;
+        deletedRecords = recordsToDelete.map(r => ({
+          _id: r._id.toString(),
+          testOrder2Id: r.testOrder2Id.toString(),
+          customerName: r.customerName
+        }));
+        
+        this.logger.log(`✅ Đã xóa ${deleted} records từ Summary4`);
+        this.logger.log(`✅ Đã xóa ${summary5DeleteResult.deletedCount} records từ Summary5`);
+      }
+    }
+
+    const result = {
+      totalOrphaned: orphanedRecords.length,
+      safeToDelete: safeToDelete.length,
+      needsReview: needsReview.length,
+      deleted,
+      preservedRecords: needsReview.map(r => ({
+        _id: r._id.toString(),
+        testOrder2Id: r.testOrder2Id.toString(),
+        manualPayment: r.manualPayment,
+        customerName: r.customerName,
+        agentName: r.agentName
+      })),
+      ...(deletedRecords.length > 0 && { deletedRecords })
+    };
+
+    this.logger.log(`🎯 SMART CLEANUP hoàn thành: ${JSON.stringify(result, null, 2)}`);
+    return result;
+  }
+
+  /**
+   * Tìm Summary4 record theo testOrder2Id 
+   * Sử dụng để kiểm tra manualPayment trước khi xóa TestOrder2
+   */
+  async findByTestOrder2Id(testOrder2Id: string): Promise<Summary4 | null> {
+    const startTime = Date.now();
+    
+    if (!testOrder2Id) {
+      this.logger.warn('[Summary4Service.findByTestOrder2Id] Empty testOrder2Id provided');
+      return null;
+    }
+
+    this.logger.log(`[Summary4Service.findByTestOrder2Id] Searching for testOrder2Id: ${testOrder2Id}`);
+
+    try {
+      // Support both ObjectId and string format for backward compatibility
+      const isObjectId = Types.ObjectId.isValid(testOrder2Id);
+      const query = isObjectId 
+        ? {
+            $or: [
+              { testOrder2Id: new Types.ObjectId(testOrder2Id) },
+              { testOrder2Id: testOrder2Id as any }
+            ]
+          }
+        : { testOrder2Id: testOrder2Id as any };
+
+      this.logger.debug(`[Summary4Service.findByTestOrder2Id] Query type: ${isObjectId ? 'ObjectId' : 'string'} for testOrder2Id: ${testOrder2Id}`);
+
+      const result = await this.summary4Model.findOne(query).exec();
+      const duration = Date.now() - startTime;
+      
+      if (result) {
+        this.logger.log(`[Summary4Service.findByTestOrder2Id] Found Summary4 record with manualPayment: ${result.manualPayment || 0} for testOrder2Id: ${testOrder2Id} (${duration}ms)`);
+      } else {
+        this.logger.log(`[Summary4Service.findByTestOrder2Id] No Summary4 record found for testOrder2Id: ${testOrder2Id} (${duration}ms)`);
+      }
+
+      return result;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      this.logger.error(`[Summary4Service.findByTestOrder2Id] Error finding Summary4 by testOrder2Id ${testOrder2Id} (${duration}ms):`, {
+        error: error.message,
+        stack: error.stack,
+        testOrder2Id,
+        timestamp: new Date().toISOString()
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Xóa Summary4 record theo testOrder2Id
+   * Sử dụng khi TestOrder2 bị xóa để đồng bộ
+   */
+  async deleteByTestOrder2Id(testOrder2Id: string): Promise<{ success: boolean; deletedCount: number; message: string }> {
+    const startTime = Date.now();
+    
+    if (!testOrder2Id) {
+      this.logger.warn('[Summary4Service.deleteByTestOrder2Id] Empty testOrder2Id provided');
+      return {
+        success: false,
+        deletedCount: 0,
+        message: 'testOrder2Id không được để trống'
+      };
+    }
+
+    this.logger.log(`[Summary4Service.deleteByTestOrder2Id] Deleting Summary4 record for testOrder2Id: ${testOrder2Id}`);
+
+    try {
+      // Support both ObjectId and string format for backward compatibility
+      const isObjectId = Types.ObjectId.isValid(testOrder2Id);
+      const query = isObjectId 
+        ? {
+            $or: [
+              { testOrder2Id: new Types.ObjectId(testOrder2Id) },
+              { testOrder2Id: testOrder2Id as any }
+            ]
+          }
+        : { testOrder2Id: testOrder2Id as any };
+
+      this.logger.debug(`[Summary4Service.deleteByTestOrder2Id] Query type: ${isObjectId ? 'ObjectId' : 'string'} for testOrder2Id: ${testOrder2Id}`);
+
+      const result = await this.summary4Model.deleteOne(query).exec();
+      const duration = Date.now() - startTime;
+      
+      if (result.deletedCount > 0) {
+        this.logger.log(`[Summary4Service.deleteByTestOrder2Id] Successfully deleted Summary4 record for testOrder2Id: ${testOrder2Id} (${duration}ms)`);
+        return {
+          success: true,
+          deletedCount: result.deletedCount,
+          message: `Đã xóa ${result.deletedCount} Summary4 record cho testOrder2Id: ${testOrder2Id}`
+        };
+      } else {
+        this.logger.log(`[Summary4Service.deleteByTestOrder2Id] No Summary4 record found to delete for testOrder2Id: ${testOrder2Id} (${duration}ms)`);
+        return {
+          success: true,
+          deletedCount: 0,
+          message: `Không tìm thấy Summary4 record cho testOrder2Id: ${testOrder2Id}`
+        };
+      }
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      this.logger.error(`[Summary4Service.deleteByTestOrder2Id] Error deleting Summary4 by testOrder2Id ${testOrder2Id} (${duration}ms):`, {
+        error: error.message,
+        stack: error.stack,
+        testOrder2Id,
+        timestamp: new Date().toISOString()
+      });
+      
+      return {
+        success: false,
+        deletedCount: 0,
+        message: `Lỗi khi xóa Summary4 record (${duration}ms): ${error.message}`
+      };
+    }
+  }
+
+  /**
+   * Xóa tất cả Summary4 records (dành cho cleanup/reset)
+   */
+  async clearAll(): Promise<{ success: boolean; deletedCount: number; message: string }> {
+    const startTime = Date.now();
+    
+    this.logger.warn('[Summary4Service.clearAll] Starting clear all operation...');
+    
+    try {
+      // Đếm số records trước khi xóa
+      const countBefore = await this.summary4Model.countDocuments();
+      this.logger.log(`[Summary4Service.clearAll] Found ${countBefore} records to clear`);
+
+      const result = await this.summary4Model.deleteMany({});
+      const duration = Date.now() - startTime;
+      
+      this.logger.warn(`[Summary4Service.clearAll] Successfully cleared ${result.deletedCount} records from Summary4 (${duration}ms)`);
+      
+      // Verify the deletion
+      const countAfter = await this.summary4Model.countDocuments();
+      if (countAfter > 0) {
+        this.logger.error(`[Summary4Service.clearAll] Warning: ${countAfter} records still remain after clear operation`);
+      }
+
+      return {
+        success: true,
+        deletedCount: result.deletedCount,
+        message: `Đã xóa thành công ${result.deletedCount} records từ Summary4 (${duration}ms)`
+      };
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      this.logger.error(`[Summary4Service.clearAll] Error clearing Summary4 records (${duration}ms):`, {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
+      
+      return {
+        success: false,
+        deletedCount: 0,
+        message: `Lỗi khi xóa dữ liệu Summary4 (${duration}ms): ${error.message}`
+      };
+    }
   }
 }

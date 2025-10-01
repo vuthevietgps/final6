@@ -34,12 +34,18 @@ export class AdGroupService {
   async findAll(query?: any): Promise<AdGroup[]> {
     const filter: FilterQuery<AdGroupDocument> = {};
     if (query?.platform) filter.platform = query.platform;
-    if (query?.productId) filter.productId = query.productId;
+    if (query?.fanpageId) filter.fanpageId = query.fanpageId;
+    if (query?.productCategoryId) filter.productCategoryId = query.productCategoryId;
     if (query?.agentId) filter.agentId = query.agentId;
     if (query?.adAccountId) filter.adAccountId = query.adAccountId;
     if (query?.isActive !== undefined) filter.isActive = query.isActive === 'true';
+    if (query?.enableAIChat !== undefined) filter.enableAIChat = query.enableAIChat === 'true';
+
     return this.adGroupModel.find(filter)
-      .populate('productId', 'name')
+      .populate('fanpageId', 'name pageId')
+      .populate('productCategoryId', 'name description color icon')
+      .populate('selectedProducts', 'name description price')
+      .populate('openAIConfigId', 'name model systemPrompt')
       .populate('agentId', 'fullName name')
       .populate('adAccountId', 'name accountId')
       .sort({ createdAt: -1 })
@@ -52,18 +58,22 @@ export class AdGroupService {
   async search(query?: any): Promise<AdGroup[]> {
     const filter: FilterQuery<AdGroupDocument> = {};
     if (query?.platform && query.platform !== 'all') filter.platform = query.platform;
-    if (query?.productId && query.productId !== 'all') filter.productId = query.productId;
+    if (query?.fanpageId && query.fanpageId !== 'all') filter.fanpageId = query.fanpageId;
+    if (query?.productCategoryId && query.productCategoryId !== 'all') filter.productCategoryId = query.productCategoryId;
     if (query?.agentId && query.agentId !== 'all') filter.agentId = query.agentId;
     if (query?.adAccountId && query.adAccountId !== 'all') filter.adAccountId = query.adAccountId;
     if (query?.status && query.status !== 'all') filter.isActive = query.status === 'active';
 
     if (query?.q) {
       const rx = new RegExp(query.q.trim(), 'i');
-      filter.$or = [{ name: rx }, { adGroupId: rx }];
+      filter.$or = [{ name: rx }, { adGroupId: rx }, { description: rx }];
     }
 
     return this.adGroupModel.find(filter)
-      .populate('productId', 'name')
+      .populate('fanpageId', 'name pageId')
+      .populate('productCategoryId', 'name description color icon')
+      .populate('selectedProducts', 'name description price')
+      .populate('openAIConfigId', 'name model')
       .populate('agentId', 'fullName name')
       .populate('adAccountId', 'name accountId')
       .sort({ createdAt: -1 })
@@ -77,7 +87,10 @@ export class AdGroupService {
 
   async findOne(id: string): Promise<AdGroup> {
     const doc = await this.adGroupModel.findById(id)
-      .populate('productId', 'name')
+      .populate('fanpageId', 'name pageId avatarUrl')
+      .populate('productCategoryId', 'name description color icon')
+      .populate('selectedProducts', 'name description price images')
+      .populate('openAIConfigId', 'name model systemPrompt temperature maxTokens')
       .populate('agentId', 'fullName name')
       .populate('adAccountId', 'name accountId')
       .exec();
@@ -85,9 +98,30 @@ export class AdGroupService {
     return doc;
   }
 
+  /**
+   * Tìm Ad Group theo adGroupId và fanpageId (dùng cho webhook)
+   * Phục vụ AI chatbot khi nhận tin nhắn từ webhook
+   */
+  async findByAdGroupIdAndFanpage(adGroupId: string, fanpageId: string): Promise<AdGroup | null> {
+    return this.adGroupModel.findOne({ 
+      adGroupId, 
+      fanpageId, 
+      isActive: true,
+      enableAIChat: true 
+    })
+      .populate('fanpageId', 'name pageId')
+      .populate('productCategoryId', 'name description')
+      .populate('selectedProducts', 'name description price images')
+      .populate('openAIConfigId', 'name model systemPrompt temperature maxTokens apiKey')
+      .exec();
+  }
+
   async update(id: string, dto: UpdateAdGroupDto): Promise<AdGroup> {
     const updated = await this.adGroupModel.findByIdAndUpdate(id, dto, { new: true })
-      .populate('productId', 'name')
+      .populate('fanpageId', 'name pageId')
+      .populate('productCategoryId', 'name description color icon')
+      .populate('selectedProducts', 'name description price')
+      .populate('openAIConfigId', 'name model')
       .populate('agentId', 'fullName name')
       .populate('adAccountId', 'name accountId')
       .exec();
@@ -108,7 +142,7 @@ export class AdGroupService {
     const rows = await this.adGroupModel.aggregate([
       {
         $group: {
-          _id: '$productId',
+          _id: '$productCategoryId',
           active: {
             $sum: { $cond: [{ $eq: ['$isActive', true] }, 1, 0] }
           },

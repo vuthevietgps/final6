@@ -113,7 +113,7 @@
           </td>
           
           <td class="price-cell">
-            <span class="price">{{ formatPrice(quote.price) }}</span>
+            <span class="price">{{ formatPrice(quote.unitPrice) }}</span>
           </td>
           
           <td class="status-cell">
@@ -126,7 +126,7 @@
           </td>
           
           <td class="date-cell">
-            {{ formatDate(quote.expiryDate) }}
+            {{ formatDate(quote.validUntil) }}
           </td>
           
           <td class="date-cell">
@@ -200,37 +200,88 @@
             <!-- Agent Selection -->
             <div class="form-group">
               <label for="agentId">Đại lý *</label>
+              
+              <!-- Checkbox áp dụng cho tất cả -->
+              <div class="apply-all-checkbox">
+                <input 
+                  type="checkbox" 
+                  id="applyToAllAgents"
+                  formControlName="applyToAllAgents"
+                  (change)="onApplyToAllChanged($event)"
+                >
+                <label for="applyToAllAgents" class="checkbox-label">
+                  ✅ Áp dụng cho tất cả đại lý
+                </label>
+              </div>
+              
               <select 
                 id="agentId" 
                 class="form-control"
                 formControlName="agentId"
-                [class.is-invalid]="quoteForm.get('agentId')?.invalid && quoteForm.get('agentId')?.touched"
+                [disabled]="quoteForm.get('applyToAllAgents')?.value"
+                [class.is-invalid]="quoteForm.get('agentId')?.invalid && quoteForm.get('agentId')?.touched && !quoteForm.get('applyToAllAgents')?.value"
               >
-                <option value="">Chọn đại lý</option>
+                <option value="">
+                  {{ quoteForm.get('applyToAllAgents')?.value ? 'Áp dụng cho tất cả đại lý' : 'Chọn đại lý' }}
+                </option>
                 <option *ngFor="let agent of agents()" [value]="agent._id">
                   {{ agent.fullName }}
                 </option>
               </select>
-              <div class="invalid-feedback" *ngIf="quoteForm.get('agentId')?.invalid && quoteForm.get('agentId')?.touched">
-                Vui lòng chọn đại lý
+              <div class="invalid-feedback" *ngIf="quoteForm.get('agentId')?.invalid && quoteForm.get('agentId')?.touched && !quoteForm.get('applyToAllAgents')?.value">
+                Vui lòng chọn đại lý hoặc chọn "Áp dụng cho tất cả"
               </div>
+              
+              <small class="form-text text-muted" *ngIf="quoteForm.get('applyToAllAgents')?.value">
+                Báo giá sẽ được tạo cho tất cả đại lý hiện tại. Bạn có thể chỉnh sửa riêng từng đại lý sau.
+              </small>
             </div>
 
-            <!-- Price -->
+            <!-- Unit Price -->
             <div class="form-group">
-              <label for="price">Giá báo (VNĐ) *</label>
+              <label for="unitPrice">Giá báo (VNĐ) *</label>
               <input 
                 type="number" 
-                id="price" 
+                id="unitPrice" 
                 class="form-control"
-                formControlName="price"
+                formControlName="unitPrice"
                 placeholder="Nhập giá báo"
                 min="0"
                 step="1000"
-                [class.is-invalid]="quoteForm.get('price')?.invalid && quoteForm.get('price')?.touched"
+                [class.is-invalid]="quoteForm.get('unitPrice')?.invalid && quoteForm.get('unitPrice')?.touched"
               >
-              <div class="invalid-feedback" *ngIf="quoteForm.get('price')?.invalid && quoteForm.get('price')?.touched">
+              <div class="invalid-feedback" *ngIf="quoteForm.get('unitPrice')?.invalid && quoteForm.get('unitPrice')?.touched">
                 Vui lòng nhập giá hợp lệ (≥ 0)
+              </div>
+            </div>
+
+            <!-- Valid From -->
+            <div class="form-group">
+              <label for="validFrom">Có hiệu lực từ *</label>
+              <input 
+                type="date" 
+                id="validFrom" 
+                class="form-control"
+                formControlName="validFrom"
+                [class.is-invalid]="quoteForm.get('validFrom')?.invalid && quoteForm.get('validFrom')?.touched"
+              >
+              <div class="invalid-feedback" *ngIf="quoteForm.get('validFrom')?.invalid && quoteForm.get('validFrom')?.touched">
+                Vui lòng chọn ngày bắt đầu hiệu lực
+              </div>
+            </div>
+
+            <!-- Valid Until -->
+            <div class="form-group">
+              <label for="validUntil">Có hiệu lực đến *</label>
+              <input 
+                type="date" 
+                id="validUntil" 
+                class="form-control"
+                formControlName="validUntil"
+                [class.is-invalid]="quoteForm.get('validUntil')?.invalid && quoteForm.get('validUntil')?.touched"
+              >
+              <div class="invalid-feedback" *ngIf="quoteForm.get('validUntil')?.invalid && quoteForm.get('validUntil')?.touched">
+                Vui lòng chọn ngày kết thúc hiệu lực
               </div>
             </div>
 
@@ -241,22 +292,15 @@
                 id="status" 
                 class="form-control"
                 formControlName="status"
+                [class.is-invalid]="quoteForm.get('status')?.invalid && quoteForm.get('status')?.touched"
               >
                 <option *ngFor="let option of statusOptions" [value]="option.value">
                   {{ option.label }}
                 </option>
               </select>
-            </div>
-
-            <!-- Expiry Date -->
-            <div class="form-group">
-              <label for="expiryDate">Ngày hết hạn</label>
-              <input 
-                type="date" 
-                id="expiryDate" 
-                class="form-control"
-                formControlName="expiryDate"
-              >
+              <div class="invalid-feedback" *ngIf="quoteForm.get('status')?.invalid && quoteForm.get('status')?.touched">
+                Vui lòng chọn trạng thái
+              </div>
             </div>
 
             <!-- Notes -->
@@ -277,7 +321,7 @@
               </div>
             </div>
           </div>
-        </div>
+        </div> <!-- Closing modal-body -->
         
         <div class="modal-footer">
           <button type="button" class="btn-secondary" data-bs-dismiss="modal">

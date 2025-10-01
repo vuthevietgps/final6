@@ -23,5 +23,6 @@ import { Summary5Module } from '../summary5/summary5.module';
   ],
   providers: [TestOrder2Service],
   controllers: [TestOrder2Controller],
+  exports: [TestOrder2Service],
 })
 export class TestOrder2Module {}

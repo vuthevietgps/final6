@@ -7,6 +7,10 @@ export interface AdvertisingCost {
   cpm?: number;
   cpc?: number;
   createdAt?: string;
+  // Enriched fields (backend join via ad group -> ad account)
+  adAccountId?: string;
+  adAccountName?: string;
+  adAccountAccountId?: string;
 }
 
 export type CreateAdvertisingCost = Omit<AdvertisingCost, '_id' | 'createdAt'>;

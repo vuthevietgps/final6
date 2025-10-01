@@ -258,11 +258,22 @@ export class Summary1Component implements OnInit {
     let val = parseFloat(target.value);
     if (isNaN(val) || val < 0) val = 0;
     
+    console.log('onBlurManual:', {
+      summaryId: row.summaryId,
+      customerName: row.customerName,
+      currentManualPayment: row.manualPayment,
+      newValue: val,
+      needToPay: row.needToPay,
+      paid: row.paid,
+      mustPay: row.mustPay
+    });
+    
     // Gọi API Summary1 để cập nhật manualPayment và tính lại needToPay
     this.http.post(`http://localhost:3000/google-sync/summary/${row.summaryId}/manual-payment`, 
       { manualPayment: val }
     ).subscribe({
       next: (updated: any) => {
+        console.log('API response:', updated);
         // Cập nhật local data với kết quả từ server
         this.orders.update(rows => rows.map(r => {
           if (r.summaryId !== row.summaryId) return r;
@@ -275,7 +286,10 @@ export class Summary1Component implements OnInit {
         // Reload stats after manual payment update
         this.loadData();
       },
-      error: (e) => console.error('Failed to update manual payment:', e)
+      error: (e) => {
+        console.error('Failed to update manual payment:', e);
+        console.error('Error details:', e.error);
+      }
     });
   }
 

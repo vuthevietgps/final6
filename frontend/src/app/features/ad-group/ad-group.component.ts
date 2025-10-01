@@ -1,10 +1,10 @@
 /**
  * File: features/ad-group/ad-group.component.ts
- * Mục đích: Giao diện quản lý Nhóm Quảng Cáo - inline editing như Trạng thái giao hàng.
+ * Mục đích: Giao diện quản lý Nhóm Quảng Cáo với tích hợp chatbot - Modern Modal UI
  */
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormArray } from '@angular/forms';
 import { AdGroupService } from './ad-group.service';
 import { AdGroup, CreateAdGroup, AdPlatform } from './models/ad-group.model';
 import { ProductService } from '../product/product.service';
@@ -14,10 +14,35 @@ import { Product } from '../product/models/product.interface';
 import { User } from '../user/user.model';
 import { AdAccount } from '../ad-account/models/ad-account.model';
 
+// Import chatbot related models and services
+interface Fanpage {
+  _id: string;
+  name: string;
+  pageId: string;
+  accessToken?: string;
+  isActive: boolean;
+}
+
+interface ProductCategory {
+  _id: string;
+  name: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+}
+
+interface OpenAIConfig {
+  _id: string;
+  name: string;
+  model: string;
+  apiKey?: string;
+  isActive: boolean;
+}
+
 @Component({
   selector: 'app-ad-group',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './ad-group.component.html',
   styleUrls: ['./ad-group.component.css']
 })
@@ -26,233 +51,368 @@ export class AdGroupComponent implements OnInit {
   private productService = inject(ProductService);
   private userService = inject(UserService);
   private adAccountService = inject(AdAccountService);
+  private fb = inject(FormBuilder);
 
+  // Data signals
   adGroups = signal<AdGroup[]>([]);
   products = signal<Product[]>([]);
   users = signal<User[]>([]);
   adAccounts = signal<AdAccount[]>([]);
+  fanpages = signal<Fanpage[]>([]);
+  productCategories = signal<ProductCategory[]>([]);
+  openAIConfigs = signal<OpenAIConfig[]>([]);
+  availableProducts = signal<Product[]>([]);
+
+  // UI state signals
   isLoading = signal(false);
   error = signal<string | null>(null);
-
-  // Inline editing
-  editingStates = signal<{[key: string]: boolean}>({});
-  platforms: AdPlatform[] = ['facebook', 'google', 'ticktock'];
+  showModal = signal(false);
+  isEditing = signal(false);
+  isSaving = signal(false);
   
   // Filter signals
-  filterPlatform = signal('all');
-  filterProductId = signal('all');
-  filterAgentId = signal('all');
-  filterStatus = signal('all');
   searchQuery = signal('');
+  
+  // Form
+  adGroupForm!: FormGroup;
+  editingId: string | null = null;
 
   ngOnInit(): void {
+    this.initForm();
     this.loadData();
+  }
+
+  private initForm(): void {
+    this.adGroupForm = this.fb.group({
+      name: ['', Validators.required],
+      adGroupId: ['', Validators.required],
+      fanpageId: ['', Validators.required],
+      productCategoryId: ['', Validators.required],
+      selectedProducts: [[]],
+      openAIConfigId: [''],
+      chatScript: this.fb.group({
+        greeting: [''],
+        upsell: [''],
+        closing: [''],
+        attributes: [[]]
+      }),
+      discountProgram: this.fb.group({
+        discountType: [''],
+        discountValue: [0],
+        conditions: ['']
+      }),
+      enableWebhook: [false],
+      enableAIChat: [false],
+      isActive: [true],
+      notes: ['']
+    });
   }
 
   private loadData(): void {
     this.isLoading.set(true);
     this.error.set(null);
     
-    // Load products
-    this.productService.getAll().subscribe({
-      next: (prods) => this.products.set(prods),
-      error: (e) => this.error.set(e.message || 'Lỗi tải sản phẩm')
-    });
-    
-    // Load users (agents)
-    this.userService.getUsers('internal_agent').subscribe({
-      next: (agentsIn) => {
-        this.userService.getUsers('external_agent').subscribe({
-          next: (agentsOut) => {
-            const map = new Map<string, User>();
-            [...agentsIn, ...agentsOut].forEach(u => map.set(u._id!, u));
-            this.users.set(Array.from(map.values()));
-          },
-          error: (e) => this.error.set(e.message || 'Lỗi tải đại lý (external)')
-        });
-      },
-      error: (e) => this.error.set(e.message || 'Lỗi tải đại lý (internal)')
-    });
-    
-    // Load ad accounts
-    this.adAccountService.getAdAccounts().subscribe({
-      next: (accounts: AdAccount[]) => this.adAccounts.set(accounts),
-      error: (e: any) => this.error.set(e.message || 'Lỗi tải tài khoản quảng cáo')
-    });
-    
-    // Load ad groups
-    this.load();
-  }
-
-  load(): void {
-    this.adGroupService.getAll().subscribe({
-      next: (list) => {
-        this.adGroups.set(list.map(l => this.normalizeAdGroup(l as any)));
-        this.isLoading.set(false);
-      },
-      error: (e) => { this.error.set(e?.message || 'Lỗi tải dữ liệu'); this.isLoading.set(false); }
+    // Load all required data
+    Promise.all([
+      this.loadAdGroups(),
+      this.loadFanpages(),
+      this.loadProductCategories(),
+      this.loadOpenAIConfigs()
+    ]).then(() => {
+      this.isLoading.set(false);
+    }).catch((error) => {
+      this.error.set('Lỗi tải dữ liệu: ' + error.message);
+      this.isLoading.set(false);
     });
   }
 
-  refresh(): void { this.load(); }
+  private async loadAdGroups(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.adGroupService.getAll().subscribe({
+        next: (groups) => {
+          this.adGroups.set(groups);
+          resolve();
+        },
+        error: reject
+      });
+    });
+  }
 
-  addNew(): void {
-    const data: CreateAdGroup = {
-      name: 'Nhóm quảng cáo mới',
-      adGroupId: 'ADG_' + Date.now(),
-      productId: this.products()[0]?._id || '',
-      agentId: this.users()[0]?._id || '',
-      adAccountId: this.adAccounts()[0]?._id || '',
-      platform: 'facebook',
+  private async loadFanpages(): Promise<void> {
+    // Mock fanpages for now - replace with actual service call
+    this.fanpages.set([
+      { _id: '1', name: 'Fanpage Demo 1', pageId: 'page_123', isActive: true },
+      { _id: '2', name: 'Fanpage Demo 2', pageId: 'page_456', isActive: true }
+    ]);
+    return Promise.resolve();
+  }
+
+  private async loadProductCategories(): Promise<void> {
+    // Mock categories for now - replace with actual service call
+    this.productCategories.set([
+      { _id: '1', name: 'Điện tử', description: 'Thiết bị điện tử', color: '#007bff', icon: '📱' },
+      { _id: '2', name: 'Thời trang', description: 'Quần áo, phụ kiện', color: '#28a745', icon: '👕' }
+    ]);
+    return Promise.resolve();
+  }
+
+  private async loadOpenAIConfigs(): Promise<void> {
+    // Mock AI configs for now - replace with actual service call
+    this.openAIConfigs.set([
+      { _id: '1', name: 'GPT-4 Standard', model: 'gpt-4', isActive: true },
+      { _id: '2', name: 'GPT-3.5 Turbo', model: 'gpt-3.5-turbo', isActive: true }
+    ]);
+    return Promise.resolve();
+  }
+
+  // Modal methods
+  openModal(): void {
+    this.isEditing.set(false);
+    this.editingId = null;
+    this.adGroupForm.reset();
+    this.adGroupForm.patchValue({
       isActive: true,
-      notes: ''
-    };
-    this.adGroupService.create(data).subscribe({
-      next: (created) => { 
-        this.adGroups.update(list => [created, ...list]); 
-        // Set editing state cho row mới
-        this.editingStates.update(states => ({...states, [created._id!]: true}));
-      },
-      error: (e) => { this.error.set('Lỗi khi thêm nhóm: ' + (e?.message || e)); }
+      enableWebhook: false,
+      enableAIChat: false,
+      selectedProducts: []
     });
+    this.showModal.set(true);
   }
 
-  // Inline editing methods
-  startEdit(id: string): void {
-    this.editingStates.update(states => ({...states, [id]: true}));
-  }
-
-  cancelEdit(id: string): void {
-    this.editingStates.update(states => {
-      const newStates = {...states};
-      delete newStates[id];
-      return newStates;
-    });
-    this.load(); // Reload to reset changes
-  }
-
-  saveEdit(group: AdGroup): void {
-    this.editingStates.update(states => {
-      const newStates = {...states};
-      delete newStates[group._id!];
-      return newStates;
-    });
-    // updateField sẽ tự động save thay đổi
-  }
-
-  isEditing(id: string): boolean {
-    return this.editingStates()[id] || false;
-  }
-
-  updateField(group: AdGroup, field: keyof AdGroup, value: any): void {
-    const patch: Partial<AdGroup> = { [field]: value } as any;
-    this.adGroupService.update(group._id!, patch).subscribe({
-      next: (updated) => {
-        const norm = this.normalizeAdGroup(updated as any);
-        this.adGroups.update(list => list.map(i => i._id === norm._id ? norm : i));
-      },
-      error: (e) => { this.error.set('Lỗi cập nhật: ' + (e?.message || e)); }
-    });
-  }
-
-  private normalizeAdGroup(raw: any): AdGroup {
-    // Accept either string ids or populated objects and normalize to strings + names
-    const prod = raw.productId;
-    const agent = raw.agentId;
-    const acc = raw.adAccountId;
-    const productId = typeof prod === 'string' ? prod : prod?._id || '';
-    const agentId = typeof agent === 'string' ? agent : agent?._id || '';
-    const adAccountId = typeof acc === 'string' ? acc : acc?._id || '';
-    const productName = typeof prod === 'object' ? (prod?.name || undefined) : undefined;
-    const agentName = typeof agent === 'object' ? (agent?.fullName || agent?.name || undefined) : undefined;
-    const adAccountName = typeof acc === 'object' ? (acc?.name || undefined) : undefined;
-    const adAccountAccountId = typeof acc === 'object' ? (acc?.accountId || undefined) : undefined;
-    return {
-      ...raw,
-      productId,
-      agentId,
-      adAccountId,
-      productName,
-      agentName,
-      adAccountName,
-      adAccountAccountId,
-    } as AdGroup;
-  }
-
-  getUserName(idOrObj: any): string {
-    // If populated object passed accidentally, use its name
-    if (idOrObj && typeof idOrObj === 'object') {
-      return idOrObj.fullName || idOrObj.name || '';
-    }
-    const id = String(idOrObj || '');
-    const u = this.users().find(x => x._id === id);
-    return u ? (u as any).fullName || (u as any).name || id : id;
-  }
-
-  getProductName(idOrObj: any): string {
-    if (idOrObj && typeof idOrObj === 'object') {
-      return idOrObj.name || '';
-    }
-    const id = String(idOrObj || '');
-    const p = this.products().find(x => x._id === id);
-    return p?.name || id;
-  }
-
-  getAdAccountName(idOrObj: any): string {
-    if (idOrObj && typeof idOrObj === 'object') {
-      const nm = idOrObj.name || '';
-      const accId = idOrObj.accountId || '';
-      return nm && accId ? `${nm} (${accId})` : (nm || accId || '');
-    }
-    const id = String(idOrObj || '');
-    const acc = this.adAccounts().find(x => x._id === id);
-    return acc ? `${acc.name} (${acc.accountId})` : id;
-  }
-
-  getInitials(name: string): string {
-    return name.split(' ').map(w => w.charAt(0)).join('').toUpperCase().slice(0, 2);
-  }
-
-  toggleActive(group: AdGroup): void {
-    this.updateField(group, 'isActive', !group.isActive);
-  }
-
-  // Filter and search methods
-  onSearch(): void {
-    const filters = {
-      q: this.searchQuery(),
-      platform: this.filterPlatform() !== 'all' ? this.filterPlatform() : undefined,
-      productId: this.filterProductId() !== 'all' ? this.filterProductId() : undefined,
-      agentId: this.filterAgentId() !== 'all' ? this.filterAgentId() : undefined,
-      status: this.filterStatus() !== 'all' ? this.filterStatus() as 'active' | 'inactive' : undefined
-    };
+  editItem(group: AdGroup): void {
+    this.isEditing.set(true);
+    this.editingId = group._id!;
     
-    this.adGroupService.search(filters).subscribe({
-      next: (list) => this.adGroups.set(list.map(l => this.normalizeAdGroup(l as any))),
-      error: (e) => this.error.set(e?.message || 'Lỗi tìm kiếm')
+    this.adGroupForm.patchValue({
+      name: group.name,
+      adGroupId: group.adGroupId,
+      fanpageId: group.fanpageId || '',
+      productCategoryId: group.productCategoryId || '',
+      selectedProducts: group.selectedProducts || [],
+      openAIConfigId: group.openAIConfigId || '',
+      chatScript: group.chatScript || {
+        greeting: '',
+        upsell: '',
+        closing: '',
+        attributes: []
+      },
+      discountProgram: group.discountProgram || {
+        discountType: '',
+        discountValue: 0,
+        conditions: ''
+      },
+      enableWebhook: group.enableWebhook || false,
+      enableAIChat: group.enableAIChat || false,
+      isActive: group.isActive,
+      notes: group.notes || ''
+    });
+
+    // Load products for selected category
+    if (group.productCategoryId) {
+      this.loadProductsByCategory(group.productCategoryId);
+    }
+    
+    this.showModal.set(true);
+  }
+
+  closeModal(): void {
+    this.showModal.set(false);
+    this.isEditing.set(false);
+    this.editingId = null;
+    this.adGroupForm.reset();
+  }
+
+  closeModalIfOutside(event: Event): void {
+    if (event.target === event.currentTarget) {
+      this.closeModal();
+    }
+  }
+
+  saveItem(): void {
+    if (this.adGroupForm.valid) {
+      this.isSaving.set(true);
+      const formData = this.adGroupForm.value;
+
+      if (this.isEditing() && this.editingId) {
+        this.adGroupService.update(this.editingId, formData).subscribe({
+          next: (updated) => {
+            this.adGroups.update(groups => 
+              groups.map(g => g._id === updated._id ? updated : g)
+            );
+            this.closeModal();
+            this.isSaving.set(false);
+          },
+          error: (error) => {
+            this.error.set('Lỗi cập nhật: ' + error.message);
+            this.isSaving.set(false);
+          }
+        });
+      } else {
+        this.adGroupService.create(formData).subscribe({
+          next: (created) => {
+            this.adGroups.update(groups => [created, ...groups]);
+            this.closeModal();
+            this.isSaving.set(false);
+          },
+          error: (error) => {
+            this.error.set('Lỗi tạo mới: ' + error.message);
+            this.isSaving.set(false);
+          }
+        });
+      }
+    }
+  }
+
+  deleteItem(group: AdGroup): void {
+    if (!confirm(`Xóa nhóm quảng cáo "${group.name}"?`)) return;
+    
+    this.adGroupService.delete(group._id!).subscribe({
+      next: () => {
+        this.adGroups.update(groups => groups.filter(g => g._id !== group._id));
+      },
+      error: (error) => {
+        this.error.set('Lỗi xóa: ' + error.message);
+      }
     });
   }
 
-  setSort(field: string): void {
-    // Implement sorting if needed
+  // Category change handler
+  onCategoryChange(event: Event): void {
+    const categoryId = (event.target as HTMLSelectElement).value;
+    if (categoryId) {
+      this.loadProductsByCategory(categoryId);
+    } else {
+      this.availableProducts.set([]);
+    }
+    // Clear selected products when category changes
+    this.adGroupForm.get('selectedProducts')?.setValue([]);
+  }
+
+  private loadProductsByCategory(categoryId: string): void {
+    // Use simplified product interface for the available products
+    const mockProducts = [
+      { 
+        _id: '1', 
+        name: 'iPhone 15 Pro', 
+        price: 29000000, 
+        description: 'Điện thoại thông minh'
+      },
+      { 
+        _id: '2', 
+        name: 'Samsung Galaxy S24', 
+        price: 25000000, 
+        description: 'Điện thoại Android'
+      }
+    ];
+    this.availableProducts.set(mockProducts as any);
+  }
+
+  // Product selection methods
+  isProductSelected(productId: string): boolean {
+    const selected = this.adGroupForm.get('selectedProducts')?.value || [];
+    return selected.includes(productId);
+  }
+
+  toggleProductSelection(productId: string, event: Event): void {
+    const checkbox = event.target as HTMLInputElement;
+    const selected = this.adGroupForm.get('selectedProducts')?.value || [];
+    
+    if (checkbox.checked) {
+      this.adGroupForm.get('selectedProducts')?.setValue([...selected, productId]);
+    } else {
+      this.adGroupForm.get('selectedProducts')?.setValue(
+        selected.filter((id: string) => id !== productId)
+      );
+    }
+  }
+
+  // Utility methods
+  getFanpageName(fanpageId?: string): string {
+    if (!fanpageId) return 'Chưa chọn';
+    const fanpage = this.fanpages().find(f => f._id === fanpageId);
+    return fanpage?.name || 'Không tìm thấy';
+  }
+
+  getCategoryName(categoryId?: string): string {
+    if (!categoryId) return 'Chưa chọn';
+    const category = this.productCategories().find(c => c._id === categoryId);
+    return category?.name || 'Không tìm thấy';
+  }
+
+  formatPrice(price: number): string {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(price);
+  }
+
+  getProductPrice(product: any): string {
+    const price = product.price || 0;
+    return this.formatPrice(price);
+  }
+
+  // Stats methods
+  getActiveCount(): number {
+    return this.adGroups().filter(g => g.isActive).length;
+  }
+
+  getChatbotEnabledCount(): number {
+    return this.adGroups().filter(g => g.enableAIChat).length;
+  }
+
+  getWebhookEnabledCount(): number {
+    return this.adGroups().filter(g => g.enableWebhook).length;
+  }
+
+  // Toggle methods
+  toggleActive(group: AdGroup): void {
+    this.adGroupService.update(group._id!, { isActive: !group.isActive }).subscribe({
+      next: (updated) => {
+        this.adGroups.update(groups => 
+          groups.map(g => g._id === updated._id ? updated : g)
+        );
+      },
+      error: (error) => {
+        this.error.set('Lỗi cập nhật trạng thái: ' + error.message);
+      }
+    });
+  }
+
+  toggleWebhook(group: AdGroup, event: Event): void {
+    const checkbox = event.target as HTMLInputElement;
+    this.adGroupService.update(group._id!, { enableWebhook: checkbox.checked }).subscribe({
+      next: (updated) => {
+        this.adGroups.update(groups => 
+          groups.map(g => g._id === updated._id ? updated : g)
+        );
+      },
+      error: (error) => {
+        this.error.set('Lỗi cập nhật webhook: ' + error.message);
+        checkbox.checked = !checkbox.checked; // Revert checkbox
+      }
+    });
+  }
+
+  // Search and filter
+  onSearch(): void {
+    const query = this.searchQuery().trim();
+    if (query) {
+      this.adGroupService.search({ q: query }).subscribe({
+        next: (results) => this.adGroups.set(results),
+        error: (error) => this.error.set('Lỗi tìm kiếm: ' + error.message)
+      });
+    } else {
+      this.loadAdGroups();
+    }
   }
 
   resetFilters(): void {
     this.searchQuery.set('');
-    this.filterPlatform.set('all');
-    this.filterProductId.set('all');
-    this.filterAgentId.set('all');
-    this.filterStatus.set('all');
-    this.load();
+    this.loadAdGroups();
   }
 
-  remove(group: AdGroup): void {
-    if (!confirm('Xóa nhóm quảng cáo này?')) return;
-    this.adGroupService.delete(group._id!).subscribe({
-      next: () => this.adGroups.update(list => list.filter(g => g._id !== group._id)),
-      error: (e) => this.error.set('Lỗi xóa: ' + (e?.message || e))
-    });
+  setSort(field: string): void {
+    // Implement sorting if needed
+    console.log('Sort by:', field);
   }
-
-  trackById(index: number, item: AdGroup): string { return item._id!; }
 }

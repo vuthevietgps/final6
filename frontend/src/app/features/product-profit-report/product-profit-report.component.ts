@@ -1,6 +1,6 @@
 /**
  * Product Profit Report Component
- * Hiển thị báo cáo lợi nhuận sản phẩm theo ngày từ dữ liệu Summary2 với biểu đồ tăng trưởng
+ * Hiển thị báo cáo lợi nhuận sản phẩm theo ngày từ dữ liệu Summary5 với biểu đồ tăng trưởng
  */
 import { Component, OnInit, computed, signal, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -78,10 +78,6 @@ export class ProductProfitReportComponent implements OnInit, AfterViewInit {
       // Load available years
       const yearsResponse = await firstValueFrom(this.productProfitService.getAvailableYears());
       this.availableYears.set(yearsResponse.years);
-
-      // Load products
-      const productsResponse = await firstValueFrom(this.http.get<Product[]>('http://localhost:3000/products'));
-      this.products.set(productsResponse || []);
     } catch (error) {
       console.error('Error loading initial data:', error);
     }
@@ -133,12 +129,11 @@ export class ProductProfitReportComponent implements OnInit, AfterViewInit {
   }
 
   /**
-   * Update product filter
+   * Update product name filter
    */
-  updateFilterProduct(event: Event) {
-    const target = event.target as HTMLSelectElement;
-    const value = target.value || undefined;
-    this.updateFilter('productId', value);
+  updateFilterProductName(event: Event) {
+    const target = event.target as HTMLInputElement;
+    this.updateFilter('productName', target.value || undefined);
   }
 
   /**
@@ -195,14 +190,6 @@ export class ProductProfitReportComponent implements OnInit, AfterViewInit {
     if (profit > 0) return 'profit-positive';
     if (profit < 0) return 'profit-negative';
     return 'profit-zero';
-  }
-
-  /**
-   * Get product name by ID
-   */
-  getProductName(productId: string): string {
-    const product = this.products().find(p => p.id === productId);
-    return product?.name || 'Sản phẩm không xác định';
   }
 
   /**

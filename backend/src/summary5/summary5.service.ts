@@ -1,8 +1,12 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+/**
+ * Summary5 Service - Báo cáo tổng hợp cuối cùng với chi phí và lợi nhuận theo ngày
+ * Features: Tổng hợp từ Summary4, tính toán chi phí quảng cáo/nhân công/khác
+ */
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+
 import { Summary5, Summary5Document } from './schemas/summary5.schema';
-import { Summary5FilterDto } from './dto/summary5-filter.dto';
 import { Summary4, Summary4Document } from '../summary4/schemas/summary4.schema';
 import { AdvertisingCost, AdvertisingCostDocument } from '../advertising-cost/schemas/advertising-cost.schema';
 import { LaborCost1, LaborCost1Document } from '../labor-cost1/schemas/labor-cost1.schema';
@@ -10,9 +14,12 @@ import { OtherCost, OtherCostDocument } from '../other-cost/schemas/other-cost.s
 import { Product, ProductDocument } from '../product/schemas/product.schema';
 import { User, UserDocument } from '../user/user.schema';
 import { UserRole } from '../user/user.enum';
+import { Summary5FilterDto } from './dto/summary5-filter.dto';
 
 @Injectable()
 export class Summary5Service {
+  private readonly logger = new Logger(Summary5Service.name);
+
   constructor(
     @InjectModel(Summary5.name) private readonly s5Model: Model<Summary5Document>,
     @InjectModel(Summary4.name) private readonly s4Model: Model<Summary4Document>,
@@ -23,8 +30,20 @@ export class Summary5Service {
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
   ) {}
 
-  private startOfDay(d: Date): Date { const x = new Date(d); x.setHours(0,0,0,0); return x; }
-  private endOfDay(d: Date): Date { const x = new Date(d); x.setHours(23,59,59,999); return x; }
+  /**
+   * Utility methods for date handling
+   */
+  private startOfDay(d: Date): Date { 
+    const x = new Date(d); 
+    x.setHours(0, 0, 0, 0); 
+    return x; 
+  }
+  
+  private endOfDay(d: Date): Date { 
+    const x = new Date(d); 
+    x.setHours(23, 59, 59, 999); 
+    return x; 
+  }
 
   async findAll(filter: Summary5FilterDto) {
     const q: any = {};
@@ -159,10 +178,10 @@ export class Summary5Service {
         // Other cost: total other in day / total qty of all orders in day * qty
         const otherCost = totalQtyAll ? (totalOther / totalQtyAll) * qty : 0;
 
-        // Cost of goods: importPrice * qty (lookup by product name)
+        // Cost of goods: importPrice * qty (lookup by product name) - only when productionStatus is "Đã trả kết quả"
         const prod = productMap.get(row.product);
         const importPrice = prod?.importPrice || 0;
-        const costOfGoods = importPrice * qty;
+        const costOfGoods = row.productionStatus === 'Đã trả kết quả' ? importPrice * qty : 0;
 
         // Revenue rules
         const user = userMap.get(row.agentName);
@@ -222,5 +241,51 @@ export class Summary5Service {
     }
 
     return { synced };
+  }
+
+  /**
+   * Xóa tất cả dữ liệu Summary5 để chuẩn bị đồng bộ lại
+   * Sử dụng khi cần reset hoàn toàn dữ liệu Summary5
+   */
+  async clearAll(): Promise<{ success: boolean; deletedCount: number; message: string }> {
+    const startTime = Date.now();
+    
+    try {
+      this.logger.warn('[Summary5Service.clearAll] Starting clear operation...');
+      
+      // Đếm số records trước khi xóa để có thống kê chi tiết
+      const countBefore = await this.s5Model.countDocuments();
+      this.logger.log(`[Summary5Service.clearAll] Found ${countBefore} records to clear`);
+
+      const result = await this.s5Model.deleteMany({});
+      const duration = Date.now() - startTime;
+      
+      this.logger.log(`[Summary5Service.clearAll] Successfully cleared ${result.deletedCount} records from Summary5 (${duration}ms)`);
+      
+      // Verify the deletion
+      const countAfter = await this.s5Model.countDocuments();
+      if (countAfter > 0) {
+        this.logger.warn(`[Summary5Service.clearAll] Warning: ${countAfter} records still remain after clear operation`);
+      }
+
+      return {
+        success: true,
+        deletedCount: result.deletedCount,
+        message: `Đã xóa thành công ${result.deletedCount} records từ Summary5 (${duration}ms)`
+      };
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      this.logger.error(`[Summary5Service.clearAll] Error clearing Summary5 records (${duration}ms):`, {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
+      
+      return {
+        success: false,
+        deletedCount: 0,
+        message: `Lỗi khi xóa dữ liệu Summary5 (${duration}ms): ${error.message}`
+      };
+    }
   }
 }

@@ -24,7 +24,7 @@ export class Quote {
   agentName: string; // Tên đại lý từ bảng User
 
   @Prop({ required: true, min: 0 })
-  price: number;
+  unitPrice: number; // Đổi từ price sang unitPrice
 
   @Prop({ 
     required: true, 
@@ -33,8 +33,11 @@ export class Quote {
   })
   status: string;
 
-  @Prop({ type: Date, default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) }) // 30 days from now
-  expiryDate: Date;
+  @Prop({ type: Date, required: true })
+  validFrom: Date; // Ngày bắt đầu hiệu lực
+
+  @Prop({ type: Date, required: true })
+  validUntil: Date; // Ngày kết thúc hiệu lực
 
   @Prop({ maxlength: 500 })
   notes?: string;
@@ -48,7 +51,7 @@ export const QuoteSchema = SchemaFactory.createForClass(Quote);
 // Add indexes for better performance
 QuoteSchema.index({ agentId: 1, status: 1 });
 QuoteSchema.index({ productId: 1 });
-QuoteSchema.index({ expiryDate: 1 });
+QuoteSchema.index({ validUntil: 1 }); // Thay expiryDate bằng validUntil
 QuoteSchema.index({ agentName: 1, product: 1 }); // Index cho matching nhanh
 QuoteSchema.index({ product: 1 });
 QuoteSchema.index({ agentName: 1 });

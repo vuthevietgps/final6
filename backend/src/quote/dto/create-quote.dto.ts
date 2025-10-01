@@ -30,9 +30,9 @@ export class CreateQuoteDto {
   @IsMongoId()
   productId: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsMongoId()
-  agentId: string;
+  agentId?: string; // Làm optional để hỗ trợ "áp dụng cho tất cả"
 
   @IsOptional()
   @IsString()
@@ -46,7 +46,7 @@ export class CreateQuoteDto {
   @IsNumber()
   @Min(0)
   @Type(() => Number)
-  price: number;
+  unitPrice: number; // Đổi từ price sang unitPrice
 
   @IsNotEmpty()
   @IsString()
@@ -54,13 +54,23 @@ export class CreateQuoteDto {
   @Transform(({ value }) => normalizeStatus(value))
   status: string;
 
-  // Chấp nhận cả ISO (yyyy-MM-dd) lẫn dạng dd/MM/yyyy; sẽ chuẩn hóa trong service
-  @IsOptional()
+  // Ngày bắt đầu hiệu lực
+  @IsNotEmpty()
   @IsString()
-  expiryDate?: string;
+  validFrom: string;
+
+  // Ngày kết thúc hiệu lực
+  @IsNotEmpty()
+  @IsString()
+  validUntil: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(500)
   notes?: string;
+
+  // Tính năng mới: áp dụng cho tất cả đại lý
+  @IsOptional()
+  @Type(() => Boolean)
+  applyToAllAgents?: boolean;
 }

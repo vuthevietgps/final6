@@ -245,6 +245,34 @@
   min-width: 120px;
 }
 
+.resource-link-cell {
+  min-width: 100px;
+  text-align: center;
+}
+
+.resource-link a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background-color: #3b82f6;
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.resource-link a:hover {
+  background-color: #2563eb;
+}
+
+.no-link {
+  color: #94a3b8;
+  font-style: italic;
+}
+
 .quantity-cell {
   min-width: 140px;
 }

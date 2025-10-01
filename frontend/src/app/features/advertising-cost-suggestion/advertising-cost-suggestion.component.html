@@ -23,6 +23,9 @@
           title="Test load dữ liệu">
           🔍 Test Load
         </button>
+        <button class="btn btn-apply" (click)="applyRecommendationsToEmpty()" [disabled]="recommendLoading()" title="Áp dụng gợi ý cho các nhóm chưa có đề xuất">
+          🔮 Áp Dụng Gợi Ý
+        </button>
         <span class="help-text">
           💡 Nhập chi phí đề xuất trực tiếp vào bảng bên dưới
         </span>
@@ -193,7 +196,7 @@
               min="0"
               step="1000"
               (blur)="updateSuggestedCost(row, $event)"
-              [placeholder]="row.suggestionId ? 'Chi phí đề xuất' : 'Nhập chi phí đề xuất'"
+              [placeholder]="recommendedBudgets()[row.adGroupId] ? ('Gợi ý: '+ recommendedBudgets()[row.adGroupId]) : (row.suggestionId ? 'Chi phí đề xuất' : 'Nhập chi phí đề xuất')"
               title="Click để nhập chi phí đề xuất">
           </td>
           <td>

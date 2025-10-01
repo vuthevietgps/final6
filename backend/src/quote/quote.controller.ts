@@ -16,16 +16,14 @@ export class QuoteController {
   create(
     @Body(new ValidationPipe({ transform: true, whitelist: true })) createQuoteDto: CreateQuoteDto,
   ) {
-    // Chuẩn hóa expiryDate: nếu là chuỗi dd/MM/yyyy thì chuyển ISO; nếu rỗng ('') thì bỏ để dùng default schema
-    if (createQuoteDto.expiryDate != null) {
-      const raw = String(createQuoteDto.expiryDate).trim();
-      if (!raw) {
-        delete (createQuoteDto as any).expiryDate;
-      } else if (/\d{2}\/\d{2}\/\d{4}/.test(raw)) {
-        const [d, m, y] = raw.split('/').map((v) => parseInt(v, 10));
-        (createQuoteDto as any).expiryDate = new Date(y, m - 1, d).toISOString();
-      }
+    // Chuẩn hóa validFrom/validUntil từ ISO format
+    if (createQuoteDto.validFrom) {
+      createQuoteDto.validFrom = new Date(createQuoteDto.validFrom).toISOString();
     }
+    if (createQuoteDto.validUntil) {
+      createQuoteDto.validUntil = new Date(createQuoteDto.validUntil).toISOString();
+    }
+    
     // Nếu product hoặc agentName là chuỗi rỗng, bỏ đi để service tự động điền
     ['product', 'agentName'].forEach((k) => {
       const v = (createQuoteDto as any)[k];
@@ -77,17 +75,14 @@ export class QuoteController {
     @Param('id') id: string,
     @Body(new ValidationPipe({ transform: true, whitelist: true })) updateQuoteDto: UpdateQuoteDto,
   ) {
-    // Chuẩn hóa expiryDate tương tự create
-    if ((updateQuoteDto as any).expiryDate !== undefined) {
-      const raw = String(updateQuoteDto.expiryDate ?? '').trim();
-      if (!raw) {
-        // Cho phép xóa ngày: bỏ field để không cast chuỗi rỗng thành Date lỗi
-        delete (updateQuoteDto as any).expiryDate;
-      } else if (/\d{2}\/\d{2}\/\d{4}/.test(raw)) {
-        const [d, m, y] = raw.split('/').map((v) => parseInt(v, 10));
-        (updateQuoteDto as any).expiryDate = new Date(y, m - 1, d).toISOString();
-      }
+    // Chuẩn hóa validFrom/validUntil từ ISO format
+    if (updateQuoteDto.validFrom) {
+      (updateQuoteDto as any).validFrom = new Date(updateQuoteDto.validFrom).toISOString();
     }
+    if (updateQuoteDto.validUntil) {
+      (updateQuoteDto as any).validUntil = new Date(updateQuoteDto.validUntil).toISOString();
+    }
+    
     // Bỏ product/agentName nếu là chuỗi rỗng
     ['product', 'agentName'].forEach((k) => {
       if ((updateQuoteDto as any)[k] !== undefined) {

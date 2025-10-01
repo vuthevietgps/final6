@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { AdvertisingCost, AdvertisingCostSummary, CreateAdvertisingCost, UpdateAdvertisingCost } from './models/advertising-cost.model';
 
@@ -8,8 +8,10 @@ export class AdvertisingCostService {
   private http = inject(HttpClient);
   private baseUrl = 'http://localhost:3000/advertising-cost';
 
-  getAll(): Observable<AdvertisingCost[]> {
-    return this.http.get<AdvertisingCost[]>(this.baseUrl);
+  getAll(filter?: { adAccountId?: string }): Observable<AdvertisingCost[]> {
+    let params = new HttpParams();
+    if (filter?.adAccountId) params = params.set('adAccountId', filter.adAccountId);
+    return this.http.get<AdvertisingCost[]>(this.baseUrl, { params });
   }
 
   getSummary(): Observable<AdvertisingCostSummary> {

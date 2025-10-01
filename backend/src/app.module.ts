@@ -45,6 +45,13 @@ import { Summary4Module } from './summary4/summary4.module';
 import { Summary5Module } from './summary5/summary5.module';
 import { TestOrder2Module } from './test-order2/test-order2.module';
 import { UserModule } from './user/user.module';
+// Chatbot & AI related modules
+import { FanpageModule } from './fanpage/fanpage.module';
+import { OpenAIConfigModule } from './openai-config/openai-config.module';
+import { ApiTokenModule } from './api-token/api-token.module';
+import { ChatMessageModule } from './chat-message/chat-message.module';
+import { PendingOrderModule } from './pending-order/pending-order.module';
+import { ProfitForecastModule } from './profit-forecast/profit-forecast.module';
 
 @Module({
   imports: [
@@ -131,6 +138,13 @@ import { UserModule } from './user/user.module';
     // Module báo cáo lợi nhuận của Quảng Cáo theo ngày
     AdGroupProfitReportModule,
     SessionLogModule,
+    // Chatbot & AI subsystem modules
+    FanpageModule,
+    OpenAIConfigModule,
+    ApiTokenModule,
+    ChatMessageModule,
+    PendingOrderModule,
+  ProfitForecastModule,
   ],
   controllers: [], // Không có controllers ở level app, chỉ có ở modules con
   providers: [],   // Không có providers chung ở level app

@@ -3,6 +3,10 @@
 
   <div class="toolbar">
   <button (click)="addNew()">+ Thêm mới</button>
+    <select [value]="filterAdAccountId()" (change)="filterAdAccountId.set($any($event.target).value); onFilterChange()">
+      <option value="all">Tất cả TK QC</option>
+      <option *ngFor="let a of adAccounts()" [value]="a._id">{{ a.name }} ({{ a.accountId }})</option>
+    </select>
     <div class="summary" *ngIf="summary() as s">
       <span>Tổng chi: {{ s.totalSpent | number:'1.0-0' }}</span>
       <span>Số bản ghi: {{ s.count }}</span>
@@ -19,6 +23,7 @@
         <th>Ngày (MM/DD/YYYY)</th>
         <th>Tần suất</th>
         <th>ID Nhóm QC</th>
+        <th>Tài khoản QC</th>
         <th>Đã chi</th>
         <th>CPM</th>
         <th>CPC</th>
@@ -30,6 +35,7 @@
         <td>{{ r.date }}</td>
         <td>{{ r.frequency || '-' }}</td>
         <td>{{ r.adGroupId }}</td>
+        <td>{{ r.adAccountName ? (r.adAccountName + ' (' + r.adAccountAccountId + ')') : '-' }}</td>
         <td>{{ r.spentAmount || 0 }}</td>
         <td>{{ r.cpm || 0 }}</td>
         <td>{{ r.cpc || 0 }}</td>

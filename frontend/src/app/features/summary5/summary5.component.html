@@ -1,14 +1,28 @@
 <div class="toolbar">
   <div class="left">
     <h2>Báo cáo 5</h2>
-    <button (click)="refresh()">Làm mới</button>
-    <button (click)="sync()">Đồng bộ</button>
-    <button (click)="syncLast7Days()">Đồng bộ 7 ngày qua</button>
+    <button (click)="refresh()" [disabled]="refreshLoading()">
+      <span *ngIf="refreshLoading()" class="spinner"></span>
+      {{ refreshLoading() ? 'Đang làm mới...' : 'Làm mới' }}
+    </button>
+    <button (click)="sync()" [disabled]="syncLoading()">
+      <span *ngIf="syncLoading()" class="spinner"></span>
+      {{ syncLoading() ? 'Đang đồng bộ...' : 'Đồng bộ' }}
+    </button>
+    <button (click)="syncLast7Days()" [disabled]="sync7DaysLoading()">
+      <span *ngIf="sync7DaysLoading()" class="spinner"></span>
+      {{ sync7DaysLoading() ? 'Đang đồng bộ...' : 'Đồng bộ 7 ngày qua' }}
+    </button>
     <button (click)="showFilters.set(!showFilters())">Bộ lọc</button>
   </div>
   <div class="right">
     <input type="text" placeholder="Tìm kiếm..." [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)" />
   </div>
+</div>
+
+<div class="alert success" *ngIf="successMessage()">
+  {{ successMessage() }}
+  <button (click)="successMessage.set(null)">×</button>
 </div>
 
 <div class="alert error" *ngIf="error()">
@@ -65,9 +79,18 @@
 <div class="empty-state" *ngIf="!loading() && filteredData().length === 0">
   <p>Chưa có dữ liệu để hiển thị. Hãy chọn khoảng ngày và bấm "Đồng bộ" để tạo dữ liệu Báo cáo 5 từ Tổng Hợp 4.</p>
   <p *ngIf="lastSynced() !== null">Lần đồng bộ gần nhất: {{ lastSynced() }} dòng.</p>
-  <button (click)="sync()">Đồng bộ ngay</button>
-  <button (click)="syncLast7Days()">Đồng bộ 7 ngày qua</button>
-  <button (click)="refresh()">Làm mới</button>
+  <button (click)="sync()" [disabled]="syncLoading()">
+    <span *ngIf="syncLoading()" class="spinner"></span>
+    {{ syncLoading() ? 'Đang đồng bộ...' : 'Đồng bộ ngay' }}
+  </button>
+  <button (click)="syncLast7Days()" [disabled]="sync7DaysLoading()">
+    <span *ngIf="sync7DaysLoading()" class="spinner"></span>
+    {{ sync7DaysLoading() ? 'Đang đồng bộ...' : 'Đồng bộ 7 ngày qua' }}
+  </button>
+  <button (click)="refresh()" [disabled]="refreshLoading()">
+    <span *ngIf="refreshLoading()" class="spinner"></span>
+    {{ refreshLoading() ? 'Đang làm mới...' : 'Làm mới' }}
+  </button>
   <button (click)="showFilters.set(true)">Mở bộ lọc</button>
   <div class="hint">Gợi ý: đồng bộ theo từng tuần/tháng để đảm bảo tốc độ.</div>
   <hr />

@@ -2,7 +2,7 @@
  * File: advertising-cost/advertising-cost.controller.ts
  * Mục đích: Cung cấp REST API CRUD cho Chi Phí Quảng Cáo.
  */
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { AdvertisingCostService } from './advertising-cost.service';
 import { CreateAdvertisingCostDto } from './dto/create-advertising-cost.dto';
 import { UpdateAdvertisingCostDto } from './dto/update-advertising-cost.dto';
@@ -22,8 +22,8 @@ export class AdvertisingCostController {
 
   @Get()
   @RequirePermissions('advertising-costs')
-  findAll() {
-    return this.service.findAll();
+  findAll(@Query() query?: any) {
+    return this.service.findAll(query);
   }
 
   @Get('stats/summary')

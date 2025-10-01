@@ -6,9 +6,10 @@ export interface Quote {
   _id?: string;
   productId: string | Product;
   agentId: string | User;
-  price: number;
+  unitPrice: number; // Đổi từ price sang unitPrice
   status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối' | 'Hết hiệu lực';
-  expiryDate: string;
+  validFrom: string; // Đổi từ expiryDate
+  validUntil: string; // Thêm field mới
   notes?: string;
   isActive: boolean;
   createdAt?: string;
@@ -17,11 +18,13 @@ export interface Quote {
 
 export interface CreateQuote {
   productId: string;
-  agentId: string;
-  price: number;
-  status: string;
-  expiryDate?: string;
+  agentId?: string; // Optional khi applyToAllAgents = true
+  unitPrice: number; // Đổi từ price sang unitPrice
+  status: string; // Thêm lại status field
+  validFrom: string; // Đổi từ expiryDate
+  validUntil: string; // Thêm field mới
   notes?: string;
+  applyToAllAgents?: boolean; // Tính năng mới
 }
 
 export interface UpdateQuote extends Partial<CreateQuote> {}
