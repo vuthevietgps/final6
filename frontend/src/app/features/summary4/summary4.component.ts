@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 import { Summary4Service } from './summary4.service';
-import { Summary4, Summary4Filter, Summary4Stats } from './models/summary4.interface';
+import { Summary4, Summary4Filter, Summary4Stats, AgentSummary } from './models/summary4.interface';
 
 @Component({
   selector: 'app-summary4',
@@ -16,6 +16,7 @@ export class Summary4Component implements OnInit {
   // Signals for reactive state management
   summary4Data = signal<Summary4[]>([]);
   stats = signal<Summary4Stats | null>(null);
+  agents = signal<AgentSummary[]>([]);
   loading = signal(false);
   error = signal<string | null>(null);
   
@@ -24,7 +25,8 @@ export class Summary4Component implements OnInit {
     page: 1,
     limit: 50,
     sortBy: 'orderDate',
-    sortOrder: 'desc'
+    sortOrder: 'desc',
+    paymentStatus: 'all'
   });
 
   // Pagination state
@@ -36,7 +38,12 @@ export class Summary4Component implements OnInit {
   editingPayment = signal<string | null>(null);
   editPaymentValue = signal<number>(0);
 
-  // UI state (filters removed)
+  // UI state for filters
+  showFilters = signal(false);
+  
+  // Form state for date filters
+  startDateInput = signal('');
+  endDateInput = signal('');
 
   // Computed for displaying data (no more client-side filtering)
   filteredData = computed(() => {
@@ -52,6 +59,7 @@ export class Summary4Component implements OnInit {
   ngOnInit() {
     this.loadData();
     this.loadStats();
+    this.loadAgents();
   }
 
   loadData() {
@@ -97,6 +105,13 @@ export class Summary4Component implements OnInit {
     });
   }
 
+  loadAgents() {
+    this.summary4Service.getAgents().subscribe({
+      next: (agents) => this.agents.set(agents),
+      error: (err) => console.error('Lỗi khi tải danh sách đại lý:', err)
+    });
+  }
+
   // Sorting and pagination only
   updateFilter<K extends keyof Summary4Filter>(key: K, value: Summary4Filter[K]) {
     this.filter.update(f => ({ ...f, [key]: value } as Summary4Filter));
@@ -106,10 +121,96 @@ export class Summary4Component implements OnInit {
     this.loadData();
   }
 
+  // Filter methods
+  toggleFilters() {
+    this.showFilters.update(show => !show);
+  }
+
+  applyDateFilter() {
+    const startDate = this.startDateInput();
+    const endDate = this.endDateInput();
+    
+    this.filter.update(f => ({
+      ...f,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      page: 1
+    }));
+    this.loadData();
+  }
+
+  clearDateFilter() {
+    this.startDateInput.set('');
+    this.endDateInput.set('');
+    this.filter.update(f => ({
+      ...f,
+      startDate: undefined,
+      endDate: undefined,
+      page: 1
+    }));
+    this.loadData();
+  }
+
+  filterByAgent(agentId: string) {
+    if (agentId === 'all') {
+      this.filter.update(f => ({ ...f, agentId: undefined, page: 1 }));
+    } else {
+      this.filter.update(f => ({ ...f, agentId, page: 1 }));
+    }
+    this.loadData();
+  }
+
+  filterByPaymentStatus(status: string) {
+    const paymentStatus = status as 'all' | 'unpaid' | 'paid' | 'manual';
+    this.filter.update(f => ({ ...f, paymentStatus, page: 1 }));
+    this.loadData();
+  }
+
+  searchCustomer(customerName: string) {
+    this.filter.update(f => ({ 
+      ...f, 
+      customerName: customerName.trim() || undefined, 
+      page: 1 
+    }));
+    this.loadData();
+  }
+
+  searchProduct(productName: string) {
+    this.filter.update(f => ({ 
+      ...f, 
+      productName: productName.trim() || undefined, 
+      page: 1 
+    }));
+    this.loadData();
+  }
+
+  searchAgent(agentName: string) {
+    this.filter.update(f => ({ 
+      ...f, 
+      agentName: agentName.trim() || undefined, 
+      page: 1 
+    }));
+    this.loadData();
+  }
+
+  clearAllFilters() {
+    this.startDateInput.set('');
+    this.endDateInput.set('');
+    this.filter.set({
+      page: 1,
+      limit: 50,
+      sortBy: 'orderDate',
+      sortOrder: 'desc',
+      paymentStatus: 'all'
+    });
+    this.loadData();
+  }
+
   // Summary1-like helpers
   refresh() {
     this.loadData();
     this.loadStats();
+    this.loadAgents();
   }
 
   goToPage(page: number) {

@@ -2,6 +2,9 @@
   <div class="header">
     <h1>📊 Báo Cáo Tổng Hợp 4</h1>
     <div class="header-actions">
+      <button class="btn btn-secondary" (click)="toggleFilters()">
+        {{ showFilters() ? '🔼 Ẩn Bộ Lọc' : '🔽 Hiện Bộ Lọc' }}
+      </button>
       <button class="btn btn-primary" (click)="syncData()" [disabled]="loading()">
         {{ loading() ? 'Đang đồng bộ...' : '🔄 Đồng bộ dữ liệu' }}
       </button>
@@ -19,6 +22,82 @@
                style="display: none;">
         <button class="btn btn-success" (click)="triggerFileInput()" [disabled]="loading()">
           {{ loading() ? 'Đang xử lý...' : '📤 Thanh Toán Tay' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter Panel -->
+  <div class="filter-panel" *ngIf="showFilters()">
+    <div class="filter-grid">
+      <!-- Agent Filter -->
+      <div class="filter-group">
+        <label>🏢 Đại Lý:</label>
+        <select (change)="filterByAgent($any($event.target).value)" [value]="filter().agentId || 'all'">
+          <option value="all">Tất cả đại lý</option>
+          <option *ngFor="let agent of agents()" [value]="agent.agentId">
+            {{ agent.agentName }} ({{ agent.orderCount }} đơn)
+          </option>
+        </select>
+        <input type="text" 
+               placeholder="Tìm theo tên đại lý..." 
+               #agentNameInput
+               (keyup.enter)="searchAgent(agentNameInput.value)"
+               [value]="filter().agentName || ''">
+      </div>
+
+      <!-- Date Filter -->
+      <div class="filter-group">
+        <label>📅 Thời Gian:</label>
+        <div class="date-inputs">
+          <input type="date" 
+                 placeholder="Từ ngày" 
+                 [value]="startDateInput()"
+                 (change)="startDateInput($any($event.target).value)">
+          <input type="date" 
+                 placeholder="Đến ngày"
+                 [value]="endDateInput()"
+                 (change)="endDateInput($any($event.target).value)">
+          <button class="btn btn-sm btn-primary" (click)="applyDateFilter()">Áp dụng</button>
+          <button class="btn btn-sm btn-secondary" (click)="clearDateFilter()">Xóa</button>
+        </div>
+      </div>
+
+      <!-- Payment Status Filter -->
+      <div class="filter-group">
+        <label>💰 Thanh Toán:</label>
+        <select (change)="filterByPaymentStatus($any($event.target).value)" [value]="filter().paymentStatus || 'all'">
+          <option value="all">Tất cả</option>
+          <option value="unpaid">Chưa thanh toán</option>
+          <option value="paid">Đã thanh toán</option>
+          <option value="manual">Có thanh toán tay</option>
+        </select>
+      </div>
+
+      <!-- Customer Search -->
+      <div class="filter-group">
+        <label>👤 Khách Hàng:</label>
+        <input type="text" 
+               placeholder="Tìm theo tên khách hàng..." 
+               #customerNameInput
+               (keyup.enter)="searchCustomer(customerNameInput.value)"
+               [value]="filter().customerName || ''">
+      </div>
+
+      <!-- Product Search -->
+      <div class="filter-group">
+        <label>📦 Sản Phẩm:</label>
+        <input type="text" 
+               placeholder="Tìm theo tên sản phẩm..." 
+               #productNameInput
+               (keyup.enter)="searchProduct(productNameInput.value)"
+               [value]="filter().productName || ''">
+      </div>
+
+      <!-- Clear Filters -->
+      <div class="filter-group">
+        <button class="btn btn-warning" (click)="clearAllFilters()">
+          🗑️ Xóa Tất Cả Bộ Lọc
         </button>
       </div>
     </div>

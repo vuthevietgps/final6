@@ -23,6 +23,11 @@ export class Summary4Controller {
     return this.summary4Service.getStats();
   }
 
+  @Get('agents')
+  getAgents() {
+    return this.summary4Service.getAgents();
+  }
+
   // Agents endpoint removed with filter/search cleanup
 
   @Get('export-unpaid')

@@ -40,7 +40,74 @@ export class Summary4Service {
     const sortOption = { [sortBy]: sortOrder === 'asc' ? 1 : -1 } as any;
     const skip = (page - 1) * limit;
 
-    const baseQuery = { isActive: true };
+    // Build dynamic query based on filters
+    const baseQuery: any = { isActive: true };
+
+    // Filter theo đại lý
+    if (filter.agentId) {
+      baseQuery.agentId = new Types.ObjectId(filter.agentId);
+    }
+    if (filter.agentName) {
+      baseQuery.agentName = { $regex: filter.agentName, $options: 'i' };
+    }
+
+    // Filter theo thời gian
+    if (filter.startDate || filter.endDate) {
+      baseQuery.orderDate = {};
+      if (filter.startDate) {
+        baseQuery.orderDate.$gte = new Date(filter.startDate);
+      }
+      if (filter.endDate) {
+        const endDate = new Date(filter.endDate);
+        endDate.setHours(23, 59, 59, 999); // Include whole end day
+        baseQuery.orderDate.$lte = endDate;
+      }
+    }
+
+    // Filter theo trạng thái
+    if (filter.productionStatus) {
+      baseQuery.productionStatus = filter.productionStatus;
+    }
+    if (filter.orderStatus) {
+      baseQuery.orderStatus = filter.orderStatus;
+    }
+
+    // Filter theo sản phẩm
+    if (filter.productId) {
+      baseQuery.productId = new Types.ObjectId(filter.productId);
+    }
+    if (filter.productName) {
+      baseQuery.product = { $regex: filter.productName, $options: 'i' };
+    }
+
+    // Filter theo khách hàng
+    if (filter.customerName) {
+      baseQuery.customerName = { $regex: filter.customerName, $options: 'i' };
+    }
+
+    // Filter theo thanh toán
+    if (filter.paymentStatus && filter.paymentStatus !== 'all') {
+      switch (filter.paymentStatus) {
+        case 'unpaid':
+          baseQuery.needToPay = { $gt: 0 };
+          break;
+        case 'paid':
+          baseQuery.needToPay = { $lte: 0 };
+          break;
+        case 'manual':
+          baseQuery.manualPayment = { $gt: 0 };
+          break;
+      }
+    }
+
+    // Filter theo Ad Group
+    if (filter.adGroupId) {
+      baseQuery.adGroupId = filter.adGroupId;
+    }
+
+    if (this.debugEnabled) {
+      this.logger.debug('Summary4 query:', JSON.stringify(baseQuery, null, 2));
+    }
 
     // Get total count first
     const total = await this.summary4Model.countDocuments(baseQuery).exec();
@@ -346,6 +413,51 @@ export class Summary4Service {
       totalNeedToPay: totalNeedToPay[0]?.total || 0,
       timestamp: new Date()
     };
+  }
+
+  async getAgents() {
+    const agents = await this.summary4Model.aggregate([
+      { $match: { isActive: true } },
+      {
+        $group: {
+          _id: '$agentId',
+          agentName: { $first: '$agentName' },
+          orderCount: { $sum: 1 },
+          totalMustPay: { $sum: '$mustPayToCompany' },
+          totalPaidToCompany: { $sum: '$paidToCompany' },
+          totalManualPayment: { $sum: '$manualPayment' },
+          totalNeedToPay: { $sum: '$needToPay' },
+          lastOrderDate: { $max: '$orderDate' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'userInfo'
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          agentId: '$_id',
+          agentName: 1,
+          fullName: { $arrayElemAt: ['$userInfo.fullName', 0] },
+          email: { $arrayElemAt: ['$userInfo.email', 0] },
+          role: { $arrayElemAt: ['$userInfo.role', 0] },
+          orderCount: 1,
+          totalMustPay: 1,
+          totalPaidToCompany: 1,
+          totalManualPayment: 1,
+          totalNeedToPay: 1,
+          lastOrderDate: 1
+        }
+      },
+      { $sort: { orderCount: -1, agentName: 1 } }
+    ]).exec();
+
+    return agents;
   }
 
   // Agents listing was removed as part of filter/search cleanup

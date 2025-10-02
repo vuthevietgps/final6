@@ -45,6 +45,46 @@ export interface Summary4Filter {
   limit?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  
+  // Filter theo đại lý
+  agentId?: string;
+  agentName?: string;
+  
+  // Filter theo thời gian
+  startDate?: string;
+  endDate?: string;
+  
+  // Filter theo trạng thái
+  productionStatus?: string;
+  orderStatus?: string;
+  
+  // Filter theo sản phẩm
+  productId?: string;
+  productName?: string;
+  
+  // Filter theo khách hàng
+  customerName?: string;
+  
+  // Filter theo thanh toán
+  paymentStatus?: 'all' | 'unpaid' | 'paid' | 'manual';
+  
+  // Filter theo Ad Group
+  adGroupId?: string;
+}
+
+export interface AgentSummary {
+  _id: string;
+  agentId: string;
+  agentName: string;
+  fullName: string;
+  email: string;
+  role: string;
+  orderCount: number;
+  totalMustPay: number;
+  totalPaidToCompany: number;
+  totalManualPayment: number;
+  totalNeedToPay: number;
+  lastOrderDate: string;
 }
 
 export interface Summary4Response {
