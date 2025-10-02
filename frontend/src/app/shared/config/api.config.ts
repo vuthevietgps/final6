@@ -9,8 +9,7 @@ export const API_CONFIG = {
     USERS: '/users',
     TEST_ORDERS: '/test-orders',
     TEST_ORDER2: '/test-order2',
-    SUMMARY1: '/google-sync/summary',
-    SUMMARY2: '/summary2',
+    // SUMMARY1 & SUMMARY2 removed - replaced by SUMMARY4 & SUMMARY5
     DELIVERY_STATUS: '/delivery-status',
     PRODUCTION_STATUS: '/production-status',
     ORDER_STATUS: '/order-status',

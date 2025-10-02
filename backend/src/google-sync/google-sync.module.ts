@@ -10,7 +10,7 @@ import { Quote, QuoteSchema } from '../quote/schemas/quote.schema';
 import { User, UserSchema } from '../user/user.schema';
 import { Product, ProductSchema } from '../product/schemas/product.schema';
 import { GoogleSyncController } from './google-sync.controller';
-import { Summary1, Summary1Schema } from './schemas/summary1.schema';
+// Summary1 removed - replaced by Summary4
 
 @Module({
   imports: [
@@ -19,7 +19,7 @@ import { Summary1, Summary1Schema } from './schemas/summary1.schema';
       { name: Quote.name, schema: QuoteSchema },
       { name: User.name, schema: UserSchema },
       { name: Product.name, schema: ProductSchema },
-      { name: Summary1.name, schema: Summary1Schema },
+      // Summary1 removed - replaced by Summary4
     ]),
   ],
   providers: [GoogleSyncService],

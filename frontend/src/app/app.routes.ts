@@ -131,9 +131,16 @@ export const routes: Routes = [
     data: { permissions: ['advertising-costs'] }
   },
   {
+    path: 'facebook-tokens',
+    loadComponent: () => import('./features/facebook-token/facebook-token.component').then(m => m.FacebookTokenComponent),
+    canActivate: [AuthGuard],
+    data: { permissions: ['advertising-costs'] }
+  },
+  {
     path: 'costs',
     children: [
       { path: 'advertising2', loadComponent: () => import('./features/advertising-cost2/advertising-cost2.component').then(m => m.AdvertisingCost2Component), canActivate: [AuthGuard], data: { permissions: ['advertising-costs'] } },
+      { path: 'facebook-sync', loadComponent: () => import('./features/facebook-ads-sync/facebook-ads-sync.component').then(m => m.FacebookAdsSyncComponent), canActivate: [AuthGuard], data: { permissions: ['advertising-costs'] } },
       { path: 'labor1', loadComponent: () => import('./features/labor-cost1/labor-cost1.component').then(m => m.LaborCost1Component), canActivate: [AuthGuard], data: { permissions: ['labor-costs'] } },
   { path: 'purchase', loadComponent: () => import('./core/components/coming-soon.component').then(m => m.ComingSoonComponent), canActivate: [AuthGuard], data: { permissions: ['purchase-costs'] } },
       { path: 'other', loadComponent: () => import('./features/other-cost/other-cost.component').then(m => m.OtherCostComponent), canActivate: [AuthGuard], data: { permissions: ['other-costs'] } },
@@ -164,8 +171,7 @@ export const routes: Routes = [
       { path: 'ad-group-profit', loadComponent: () => import('./features/ad-group-profit/ad-group-profit.component').then(m => m.AdGroupProfitComponent) },
       { path: 'ad-group-profit-report', loadComponent: () => import('./features/ad-group-profit-report/ad-group-profit-report.component').then(m => m.AdGroupProfitReportComponent) },
       { path: 'profit-forecast', loadComponent: () => import('./features/profit-forecast/profit-forecast.component').then(m => m.ProfitForecastComponent) },
-      { path: 'summary1', loadComponent: () => import('./features/summary1/summary1.component').then(m => m.Summary1Component) },
-      { path: 'summary2', loadComponent: () => import('./features/summary2/summary2.component').then(m => m.Summary2Component) },
+      // Summary1 & Summary2 removed - replaced by Summary4 & Summary5
       { path: 'summary4', loadComponent: () => import('./features/summary4/summary4.component').then(m => m.Summary4Component) },
   { path: 'summary5', loadComponent: () => import('./features/summary5/summary5.component').then(m => m.Summary5Component) },
       { path: 'product-profit', loadComponent: () => import('./features/product-profit-report/product-profit-report.component').then(m => m.ProductProfitReportComponent) },

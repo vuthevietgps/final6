@@ -70,7 +70,7 @@ export class ChatMessageController {
     if(!body.fanpageId || !body.senderPsid) throw new BadRequestException('Thiếu fanpageId / senderPsid');
     // Lấy messages để build context
     const conv = await this.service.getConversation(body.fanpageId, body.senderPsid).catch(()=> null);
-    const recent = conv?.messages.slice(0, 12).reverse() || []; // lấy tối đa 12 message gần nhất (đã sort desc)
+    const recent = conv?.messages.slice(0, 10).reverse() || []; // lấy tối đa 10 message gần nhất (đã sort desc)
     // Ưu tiên config explicit
     let fanpage = await this.fanpageModel.findById(body.fanpageId).lean();
     if(!fanpage) fanpage = await this.fanpageModel.findOne({ pageId: body.fanpageId }).lean();

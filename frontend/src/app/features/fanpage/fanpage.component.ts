@@ -8,6 +8,26 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FanpageService, Fanpage, CreateFanpageRequest } from './fanpage.service';
 import { OpenAIConfigService, OpenAIConfig } from '../openai-config/openai-config.service';
+import { ProductService } from '../product/product.service';
+
+interface Product {
+  _id: string;
+  name: string;
+  importPrice: number;
+  images: Array<{url: string, description: string}>;
+}
+
+interface ProductVariation {
+  productId: string;
+  productName: string;
+  fanpageId: string;
+  customName?: string;
+  customDescription?: string;
+  price?: number;
+  priority: number;
+  isActive: boolean;
+  customImages?: string[];
+}
 
 @Component({
   selector: 'app-fanpage',
@@ -19,6 +39,7 @@ import { OpenAIConfigService, OpenAIConfig } from '../openai-config/openai-confi
 export class FanpageComponent implements OnInit {
   private service = inject(FanpageService);
   private aiConfigSvc = inject(OpenAIConfigService);
+  private productService = inject(ProductService);
 
   // State signals
   fanpages = signal<Fanpage[]>([]);
@@ -26,6 +47,17 @@ export class FanpageComponent implements OnInit {
   error = signal<string | null>(null);
   showAddModal = signal(false);
   editingFanpage = signal<Fanpage | null>(null);
+
+  // Product management signals
+  availableProducts = signal<Product[]>([]);
+  fanpageProducts = signal<ProductVariation[]>([]);
+  productSearchQuery = '';
+  showProductModal = signal(false);
+  editingProductVariation = signal<ProductVariation | null>(null);
+  productFormData = signal<Partial<ProductVariation>>({
+    priority: 0,
+    isActive: true
+  });
 
   // Form data for new/edit
   formData = signal<Partial<CreateFanpageRequest>>({
@@ -81,19 +113,20 @@ export class FanpageComponent implements OnInit {
       timezone: 'Asia/Ho_Chi_Minh'
     });
     this.editingFanpage.set(null);
+    
+    // Reset product management state for new fanpage
+    this.fanpageProducts.set([]);
+    this.availableProducts.set([]);
+    this.productSearchQuery = '';
+    
     this.showAddModal.set(true);
     this.loadAIConfigs();
+    
+    // Load all products for selection even when creating new fanpage
+    this.loadAllProducts();
   }
 
-  /**
-   * Mở modal chỉnh sửa fanpage
-   */
-  openEditModal(fanpage: Fanpage){
-    this.formData.set({...fanpage});
-    this.editingFanpage.set(fanpage);
-    this.showAddModal.set(true);
-    this.loadAIConfigs();
-  }
+
 
   /**
    * Đóng modal
@@ -102,6 +135,11 @@ export class FanpageComponent implements OnInit {
     this.showAddModal.set(false);
     this.editingFanpage.set(null);
     this.formData.set({});
+    
+    // Reset product management state
+    this.fanpageProducts.set([]);
+    this.availableProducts.set([]);
+    this.productSearchQuery = '';
   }
 
   /**
@@ -127,19 +165,47 @@ export class FanpageComponent implements OnInit {
 
     const editing = this.editingFanpage();
     if (editing) {
-      // Cập nhật
+      // Cập nhật fanpage existing
       this.service.update(editing._id, data).subscribe({
         next: updated => {
           this.fanpages.update(list => list.map(f => f._id === updated._id ? updated : f));
+          
+          // Save fanpage products if any changes
+          if (this.fanpageProducts().length > 0) {
+            console.log('Products to be updated for fanpage:', this.fanpageProducts());
+            // TODO: Call API to save fanpage products
+            // this.saveFanpageProducts(updated._id, this.fanpageProducts());
+          }
+          
           this.closeModal();
         },
         error: err => this.handleError(err, 'Không thể cập nhật fanpage')
       });
     } else {
-      // Tạo mới
+      // Tạo mới fanpage
       this.service.create(data as CreateFanpageRequest).subscribe({
         next: created => {
           this.fanpages.update(list => [created, ...list]);
+          
+          // Save fanpage products after fanpage is created
+          if (this.fanpageProducts().length > 0) {
+            console.log('Products to be saved for new fanpage:', this.fanpageProducts());
+            
+            // Update fanpageId for all products from temp to real ID
+            const updatedProducts = this.fanpageProducts().map(p => ({
+              ...p,
+              fanpageId: created._id
+            }));
+            
+            // TODO: In a real app, call API to save fanpage products
+            // this.saveFanpageProducts(created._id, updatedProducts);
+            
+            console.log('New fanpage created with products:', {
+              fanpage: created,
+              products: updatedProducts
+            });
+          }
+          
           this.closeModal();
         },
         error: err => this.handleError(err, 'Không thể tạo fanpage mới')
@@ -252,4 +318,199 @@ export class FanpageComponent implements OnInit {
   }
 
   trackById(index: number, item: Fanpage){ return item._id; }
+
+  // ======== PRODUCT MANAGEMENT METHODS ========
+
+  /**
+   * Load all products for selection
+   */
+  loadAllProducts() {
+    this.productService.getAll().subscribe({
+      next: (products: any[]) => {
+        // Filter out products already in fanpage
+        const currentFanpageProductIds = this.fanpageProducts().map(fp => fp.productId);
+        const available = products.filter((p: any) => !currentFanpageProductIds.includes(p._id));
+        this.availableProducts.set(available);
+        console.log('Loaded products:', available.length, 'available,', currentFanpageProductIds.length, 'already selected');
+      },
+      error: (err: any) => this.handleError(err, 'Không thể tải danh sách sản phẩm')
+    });
+  }
+
+  /**
+   * Search products by query
+   */
+  searchProducts() {
+    if (!this.productSearchQuery.trim()) {
+      this.availableProducts.set([]);
+      return;
+    }
+
+    this.productService.getAll({ search: this.productSearchQuery }).subscribe({
+      next: (products: any[]) => {
+        const currentFanpageProductIds = this.fanpageProducts().map(fp => fp.productId);
+        const available = products.filter((p: any) => !currentFanpageProductIds.includes(p._id));
+        this.availableProducts.set(available);
+      },
+      error: (err: any) => this.handleError(err, 'Không thể tìm kiếm sản phẩm')
+    });
+  }
+
+  /**
+   * Add product to fanpage
+   */
+  addProductToFanpage(product: Product) {
+    const currentFanpage = this.editingFanpage();
+    
+    const variation: ProductVariation = {
+      productId: product._id,
+      productName: product.name,
+      fanpageId: currentFanpage ? currentFanpage._id : 'temp-new-fanpage',
+      priority: 0,
+      isActive: true
+    };
+
+    // Add to fanpage products list
+    this.fanpageProducts.update(products => [...products, variation]);
+    
+    // Remove from available products
+    this.availableProducts.update(products => 
+      products.filter(p => p._id !== product._id)
+    );
+
+    console.log('Added product to fanpage:', variation);
+  }
+
+  /**
+   * Remove product from fanpage
+   */
+  removeProductFromFanpage(variation: ProductVariation) {
+    if (!confirm(`Xóa sản phẩm "${variation.productName}" khỏi fanpage?`)) return;
+
+    this.fanpageProducts.update(products => 
+      products.filter(p => p.productId !== variation.productId)
+    );
+
+    // Reload available products to include this one back
+    this.loadAllProducts();
+  }
+
+  /**
+   * Edit product variation
+   */
+  editProductVariation(variation: ProductVariation) {
+    this.editingProductVariation.set(variation);
+    this.productFormData.set({
+      customName: variation.customName,
+      customDescription: variation.customDescription,
+      price: variation.price,
+      priority: variation.priority,
+      isActive: variation.isActive,
+      customImages: variation.customImages || []
+    });
+    this.showProductModal.set(true);
+  }
+
+  /**
+   * Save product variation changes
+   */
+  saveProductVariation() {
+    const editing = this.editingProductVariation();
+    const formData = this.productFormData();
+    
+    if (!editing) return;
+
+    // Update the variation in the list
+    this.fanpageProducts.update(products =>
+      products.map(p => 
+        p.productId === editing.productId 
+          ? { ...p, ...formData }
+          : p
+      )
+    );
+
+    this.closeProductModal();
+  }
+
+  /**
+   * Close product modal
+   */
+  closeProductModal() {
+    this.showProductModal.set(false);
+    this.editingProductVariation.set(null);
+    this.productFormData.set({
+      priority: 0,
+      isActive: true
+    });
+  }
+
+  /**
+   * Load fanpage products when editing
+   */
+  private loadFanpageProducts(fanpageId: string) {
+    // In a real app, this would call an API to get fanpage products
+    // For now, we'll simulate with empty array
+    this.fanpageProducts.set([]);
+    this.loadAllProducts();
+  }
+
+  /**
+   * Handle product form input changes
+   */
+  onProductInputChange(event: Event, field: keyof ProductVariation) {
+    const target = event.target as HTMLInputElement;
+    this.productFormData.update(data => ({ ...data, [field]: target.value }));
+  }
+
+  onProductNumberChange(event: Event, field: keyof ProductVariation) {
+    const target = event.target as HTMLInputElement;
+    this.productFormData.update(data => ({ ...data, [field]: +target.value }));
+  }
+
+  onProductCheckboxChange(event: Event, field: keyof ProductVariation) {
+    const target = event.target as HTMLInputElement;
+    this.productFormData.update(data => ({ ...data, [field]: target.checked }));
+  }
+
+  onCustomImagesChange(event: Event) {
+    const target = event.target as HTMLTextAreaElement;
+    const urls = target.value.split('\n').filter(url => url.trim()).map(url => url.trim());
+    this.productFormData.update(data => ({ ...data, customImages: urls }));
+  }
+
+  // ======== OVERRIDE EXISTING METHODS TO HANDLE PRODUCTS ========
+
+  /**
+   * Override openEditModal to load fanpage products
+   */
+  openEditModal(fanpage: Fanpage) {
+    this.editingFanpage.set(fanpage);
+    this.formData.set({
+      pageId: fanpage.pageId,
+      name: fanpage.name,
+      accessToken: fanpage.accessToken,
+      status: fanpage.status,
+      avatarUrl: fanpage.avatarUrl,
+      description: fanpage.description,
+      greetingScript: fanpage.greetingScript,
+      clarifyScript: fanpage.clarifyScript,
+      productSuggestScript: fanpage.productSuggestScript,
+      fallbackScript: fanpage.fallbackScript,
+      closingScript: fanpage.closingScript,
+      messageQuota: fanpage.messageQuota,
+      subscriberCount: fanpage.subscriberCount,
+      sentThisMonth: fanpage.sentThisMonth,
+      timezone: fanpage.timezone,
+      subscribedWebhook: fanpage.subscribedWebhook,
+      aiEnabled: fanpage.aiEnabled,
+      openAIConfigId: fanpage.openAIConfigId,
+      connectedBy: fanpage.connectedBy,
+      defaultProductGroup: fanpage.defaultProductGroup
+    });
+    
+    // Load fanpage products
+    this.loadFanpageProducts(fanpage._id);
+    
+    this.showAddModal.set(true);
+  }
 }

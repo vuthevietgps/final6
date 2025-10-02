@@ -87,9 +87,8 @@ export class QuoteService {
       for (const quote of createdQuotes) {
         const agentId = String(quote.agentId);
         const prodId = String(quote.productId);
-        this.googleSync.updateSummaryForAgentProduct(agentId, prodId)
-          .then(() => this.googleSync.schedulePushOnly(agentId))
-          .catch(() => this.googleSync.schedulePushOnly(agentId));
+        // Google sync removed - using Summary4 sync instead
+        // TODO: Integrate with Summary4GoogleSyncService if needed
       }
       
       return quotes;
@@ -125,15 +124,8 @@ export class QuoteService {
       const saved = await createdQuote.save();
       const agentId = String(saved.agentId);
       
-      // Cập nhật Summary1 cho cặp agent+product và chỉ push lên Google (bỏ rebuild toàn bộ)
-      if (agentId && (saved as any).productId) {
-        const productId = String((saved as any).productId);
-        this.googleSync.updateSummaryForAgentProduct(agentId, productId)
-          .then(() => this.googleSync.schedulePushOnly(agentId))
-          .catch(() => this.googleSync.schedulePushOnly(agentId));
-      } else if (agentId) {
-        this.googleSync.schedulePushOnly(agentId);
-      }
+      // Google sync removed - using Summary4 sync instead
+      // TODO: Integrate with Summary4GoogleSyncService if needed
       
       return saved;
     }
@@ -188,11 +180,10 @@ export class QuoteService {
     const agentId = String((updatedQuote as any).agentId?._id || (updatedQuote as any).agentId);
     const productId = String((updatedQuote as any).productId?._id || (updatedQuote as any).productId);
     if (agentId && productId) {
-      this.googleSync.updateSummaryForAgentProduct(agentId, productId)
-        .then(() => this.googleSync.schedulePushOnly(agentId))
-        .catch(() => this.googleSync.schedulePushOnly(agentId));
+      // Google sync removed - using Summary4 sync instead
+      // TODO: Integrate with Summary4GoogleSyncService if needed
     } else if (agentId) {
-      this.googleSync.schedulePushOnly(agentId);
+      // TODO: Integrate with Summary4GoogleSyncService if needed
     }
     return updatedQuote;
   }
@@ -208,11 +199,10 @@ export class QuoteService {
     const agentId = String((deletedQuote as any).agentId);
     const productId = String((deletedQuote as any).productId || '');
     if (agentId && productId) {
-      this.googleSync.updateSummaryForAgentProduct(agentId, productId)
-        .then(() => this.googleSync.schedulePushOnly(agentId))
-        .catch(() => this.googleSync.schedulePushOnly(agentId));
+      // Google sync removed - using Summary4 sync instead
+      // TODO: Integrate with Summary4GoogleSyncService if needed
     } else if (agentId) {
-      this.googleSync.schedulePushOnly(agentId);
+      // TODO: Integrate with Summary4GoogleSyncService if needed
     }
     return deletedQuote;
   }

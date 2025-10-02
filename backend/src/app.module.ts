@@ -40,7 +40,6 @@ import { ProductionStatusModule } from './production-status/production-status.mo
 import { QuoteModule } from './quote/quote.module';
 import { SalaryConfigModule } from './salary-config/salary-config.module';
 import { SessionLogModule } from './session-log/session-log.module';
-import { Summary2Module } from './summary2/summary2.module';
 import { Summary4Module } from './summary4/summary4.module';
 import { Summary5Module } from './summary5/summary5.module';
 import { TestOrder2Module } from './test-order2/test-order2.module';
@@ -52,6 +51,8 @@ import { ApiTokenModule } from './api-token/api-token.module';
 import { ChatMessageModule } from './chat-message/chat-message.module';
 import { PendingOrderModule } from './pending-order/pending-order.module';
 import { ProfitForecastModule } from './profit-forecast/profit-forecast.module';
+import { FacebookAdsSyncModule } from './facebook-ads-sync/facebook-ads-sync.module';
+import { FacebookTokenModule } from './facebook-token/facebook-token.module';
 
 @Module({
   imports: [
@@ -123,9 +124,8 @@ import { ProfitForecastModule } from './profit-forecast/profit-forecast.module';
     // Module Đề Xuất Chi Phí Quảng Cáo
     AdvertisingCostSuggestionModule,
     SalaryConfigModule,
-    Summary2Module,
-  Summary4Module,
-  Summary5Module,
+    Summary4Module,
+    Summary5Module,
     LaborCost1Module,
     // Module đồng bộ Google Sheets định kỳ
     GoogleSyncModule,
@@ -144,7 +144,11 @@ import { ProfitForecastModule } from './profit-forecast/profit-forecast.module';
     ApiTokenModule,
     ChatMessageModule,
     PendingOrderModule,
-  ProfitForecastModule,
+    ProfitForecastModule,
+    // Module đồng bộ chi phí từ Facebook Ads
+    FacebookAdsSyncModule,
+    // Module quản lý Facebook Access Tokens
+    FacebookTokenModule,
   ],
   controllers: [], // Không có controllers ở level app, chỉ có ở modules con
   providers: [],   // Không có providers chung ở level app

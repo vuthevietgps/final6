@@ -320,7 +320,7 @@ export class MessengerWebhookController {
 
       // Check if AI already replied to latest inbound message
       const convData = await this.chatService.getConversation(fp._id.toString(), senderPsid);
-      const recentMessages = convData.messages.slice(0, 3);
+      const recentMessages = convData.messages.slice(0, 10);
 
       const lastInbound = recentMessages.find(m => m.direction === 'in');
       const hasAiReplyToLastInbound = lastInbound && recentMessages.some(m => 
@@ -460,7 +460,7 @@ export class MessengerWebhookController {
     try {
       // Get recent conversation history
       const convData = await this.chatService.getConversation(fanpage._id.toString(), senderPsid);
-      const recentMessages = convData.messages.slice(0, 6).reverse();
+      const recentMessages = convData.messages.slice(0, 10).reverse();
 
       // Build system prompt with product recommendations
       let systemPrompt = `Bạn là trợ lý AI thân thiện của fanpage "${fanpage.name}". `;

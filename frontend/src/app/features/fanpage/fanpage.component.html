@@ -244,9 +244,88 @@
         </div>
       </div>
 
+      <!-- Quản lý sản phẩm cho fanpage -->
+      <details class="products-section" [open]="true">
+        <summary>📦 Quản lý sản phẩm cho fanpage này</summary>
+        
+        <div class="products-manager">
+          <!-- Search và add sản phẩm -->
+          <div class="product-search-section">
+            <div class="search-row">
+              <input 
+                type="text" 
+                placeholder="Tìm sản phẩm để thêm vào fanpage..."
+                [(ngModel)]="productSearchQuery"
+                (input)="searchProducts()"
+                class="product-search-input">
+              <button class="btn-primary btn-sm" (click)="loadAllProducts()">
+                🔍 Tìm kiếm
+              </button>
+            </div>
+            
+            <!-- Danh sách sản phẩm có thể thêm -->
+            <div *ngIf="availableProducts().length > 0" class="available-products">
+              <h5>Sản phẩm có thể thêm:</h5>
+              <div class="product-list">
+                <div *ngFor="let product of availableProducts()" class="product-item">
+                  <div class="product-info">
+                    <div class="product-name">{{ product.name }}</div>
+                    <div class="product-price">{{ product.importPrice | number }}đ</div>
+                  </div>
+                  <button class="btn-primary btn-xs" (click)="addProductToFanpage(product)">
+                    ➕ Thêm
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sản phẩm đã thêm vào fanpage -->
+          <div class="fanpage-products-section">
+            <h5>Sản phẩm của fanpage này:</h5>
+            <div *ngIf="fanpageProducts().length === 0" class="empty-products">
+              <p>{{ editingFanpage() ? 'Chưa có sản phẩm nào được thêm vào fanpage này.' : 'Chưa có sản phẩm nào được chọn cho fanpage mới.' }}</p>
+              <p class="hint">Sử dụng tìm kiếm ở trên để thêm sản phẩm{{ editingFanpage() ? '.' : ' (sẽ được lưu khi tạo fanpage).' }}</p>
+            </div>
+            
+            <div *ngIf="fanpageProducts().length > 0" class="fanpage-product-list">
+              <div *ngFor="let productVariation of fanpageProducts()" class="fanpage-product-item">
+                <div class="product-details">
+                  <div class="product-name">{{ productVariation.productName }}</div>
+                  <div class="product-custom-info">
+                    <div class="custom-name" *ngIf="productVariation.customName">
+                      <strong>Tên tùy chỉnh:</strong> {{ productVariation.customName }}
+                    </div>
+                    <div class="custom-price" *ngIf="productVariation.price">
+                      <strong>Giá bán:</strong> {{ productVariation.price | number }}đ
+                    </div>
+                    <div class="priority">
+                      <strong>Ưu tiên:</strong> {{ productVariation.priority || 0 }}
+                    </div>
+                    <div class="status">
+                      <span [class]="productVariation.isActive ? 'status-active' : 'status-inactive'">
+                        {{ productVariation.isActive ? 'Đang bán' : 'Tạm dừng' }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div class="product-actions">
+                  <button class="btn-secondary btn-xs" (click)="editProductVariation(productVariation)">
+                    ✏️ Sửa
+                  </button>
+                  <button class="btn-danger btn-xs" (click)="removeProductFromFanpage(productVariation)">
+                    🗑️ Xóa
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </details>
+
       <!-- Thống kê -->
       <details class="stats-section">
-        <summary>➕ Thêm thuộc tính sản phẩm</summary>
+        <summary>📊 Thống kê và cài đặt nâng cao</summary>
         <div class="stats-grid">
           <div class="form-group">
             <label>Subscriber</label>
@@ -309,6 +388,91 @@
     <div class="modal-footer">
       <button class="btn-secondary" (click)="closeModal()">Hủy</button>
       <button class="btn-primary" (click)="saveFanpage()">Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal sửa product variation -->
+<div *ngIf="showProductModal()" class="modal-overlay" (click)="closeProductModal()">
+  <div class="modal-content modal-sm" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Tùy chỉnh sản phẩm cho fanpage</h3>
+      <button class="btn-close" (click)="closeProductModal()">×</button>
+    </div>
+    
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Sản phẩm gốc:</label>
+        <div class="product-original">{{ editingProductVariation()?.productName }}</div>
+      </div>
+
+      <div class="form-group">
+        <label for="customName">Tên tùy chỉnh cho fanpage:</label>
+        <input 
+          id="customName"
+          type="text" 
+          [value]="productFormData().customName || ''"
+          (input)="onProductInputChange($event, 'customName')"
+          placeholder="Để trống sẽ dùng tên gốc">
+      </div>
+
+      <div class="form-group">
+        <label for="customDescription">Mô tả tùy chỉnh:</label>
+        <textarea 
+          id="customDescription"
+          [value]="productFormData().customDescription || ''"
+          (input)="onProductInputChange($event, 'customDescription')"
+          rows="3"
+          placeholder="Mô tả đặc biệt cho fanpage này..."></textarea>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="customPrice">Giá bán (đ):</label>
+          <input 
+            id="customPrice"
+            type="number" 
+            [value]="productFormData().price || ''"
+            (input)="onProductNumberChange($event, 'price')"
+            placeholder="Giá bán cho fanpage này"
+            min="0">
+        </div>
+        <div class="form-group">
+          <label for="priority">Ưu tiên:</label>
+          <input 
+            id="priority"
+            type="number" 
+            [value]="productFormData().priority || 0"
+            (input)="onProductNumberChange($event, 'priority')"
+            min="0"
+            max="10">
+        </div>
+      </div>
+
+      <div class="form-group checkbox-group">
+        <label>
+          <input 
+            type="checkbox" 
+            [checked]="productFormData().isActive !== false"
+            (change)="onProductCheckboxChange($event, 'isActive')">
+          Đang bán trên fanpage này
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label>Ảnh tùy chỉnh (URLs, mỗi URL một dòng):</label>
+        <textarea 
+          [value]="(productFormData().customImages || []).join('\n')"
+          (input)="onCustomImagesChange($event)"
+          rows="3"
+          placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg"></textarea>
+        <div class="hint">Để trống sẽ dùng ảnh gốc của sản phẩm</div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeProductModal()">Hủy</button>
+      <button class="btn-primary" (click)="saveProductVariation()">Lưu</button>
     </div>
   </div>
 </div>

@@ -9,7 +9,7 @@ import { Readable } from 'stream';
 import * as csv from 'csv-parser';
 import * as XLSX from 'xlsx';
 
-import { GoogleSyncService } from '../google-sync/google-sync.service';
+// GoogleSyncService import removed
 import { Summary4Service } from '../summary4/summary4.service';
 import { Summary5Service } from '../summary5/summary5.service';
 import { Product, ProductDocument } from '../product/schemas/product.schema';
@@ -26,7 +26,7 @@ export class TestOrder2Service {
   constructor(
     @InjectModel(TestOrder2.name) private readonly model: Model<TestOrder2Document>,
     @InjectModel(Product.name) private readonly productModel: Model<ProductDocument>,
-    private readonly googleSync: GoogleSyncService,
+    // GoogleSyncService removed
     private readonly summary4Sync: Summary4Service,
     private readonly summary5Service: Summary5Service,
   ) {}
@@ -90,7 +90,7 @@ export class TestOrder2Service {
     
     // Sync Google Ads theo agent
     if (agentId && agentId !== 'undefined' && agentId !== 'null') {
-      this.googleSync.scheduleAgentSync(agentId);
+      // Google sync removed - using Summary4 sync instead
     }
   }
 
@@ -248,7 +248,7 @@ export class TestOrder2Service {
     
     // Sync Google Ads theo agent
     if (agentId && agentId !== 'undefined' && agentId !== 'null') {
-      this.googleSync.scheduleAgentSync(agentId);
+      // Google sync removed - using Summary4 sync instead
     }
   }
 
@@ -392,7 +392,7 @@ export class TestOrder2Service {
     if (agentId && agentId !== 'undefined' && agentId !== 'null') {
       console.log(`[TestOrder2Service.triggerPostDeleteSyncs] Triggering Google Ads sync for agent: ${agentId} (order: ${orderId})`);
       try {
-        this.googleSync.scheduleAgentSync(agentId);
+        // Google sync removed - using Summary4 sync instead
       } catch (err) {
         console.error(`[TestOrder2Service.triggerPostDeleteSyncs] Google Ads sync scheduling failed:`, {
           error: err.message,
@@ -722,7 +722,7 @@ export class TestOrder2Service {
     // Trigger sync Google Sheet
     const agentId = String(doc.agentId);
     if (agentId) {
-      this.googleSync.scheduleAgentSync(agentId);
+      // Google sync removed - using Summary4 sync instead
     }
 
     // Trigger sync Summary4 and Summary5 for the day
@@ -814,7 +814,7 @@ export class TestOrder2Service {
       // Trigger sync như các update khác
       const agentId = String(doc.agentId);
       if (agentId) {
-        this.googleSync.scheduleAgentSync(agentId);
+        // Google sync removed - using Summary4 sync instead
       }
 
       // Trigger sync Summary4 và Summary5
