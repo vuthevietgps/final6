@@ -17,6 +17,7 @@ interface WebhookParams {
   lastUserMessage: string;
   savedInboundId?: string;
   hasProductIntent?: boolean;
+  hasPhoneNumber?: boolean;
 }
 
 interface MessagingEvent {
@@ -238,13 +239,31 @@ export class MessengerWebhookController {
         content.toLowerCase().includes(keyword)
       );
 
+      // Check for phone number in message
+      const phonePattern = /(0|\+84)[0-9]{8,10}|([0-9]{10,11})/g;
+      const hasPhoneNumber = phonePattern.test(content);
+      
+      // Mark conversation for sales follow-up if phone number detected
+      if (hasPhoneNumber) {
+        await this.chatService.create({
+          fanpageId: fanpage?._id?.toString() || pageId,
+          senderPsid,
+          content: '[LEAD_CAPTURED] Số điện thoại đã được cung cấp - Ưu tiên gọi lại',
+          direction: 'system',
+          raw: { phoneNumber: content.match(phonePattern), capturedAt: new Date() },
+          receivedAt: timestamp as any,
+          awaitingHuman: true,
+        } as any);
+      }
+
       this.triggerAutoAiReply({
         fanpage,
         pageId,
         senderPsid,
         lastUserMessage: content,
         savedInboundId: (savedMessage as any)._id?.toString(),
-        hasProductIntent
+        hasProductIntent,
+        hasPhoneNumber
       });
     }
   }
@@ -414,7 +433,8 @@ export class MessengerWebhookController {
         senderPsid, 
         lastUserMessage, 
         config, 
-        productRecommendations
+        productRecommendations,
+        params.hasPhoneNumber
       );
       if (!aiResponse) {
         if (this.isDebugMode) {
@@ -455,15 +475,19 @@ export class MessengerWebhookController {
     senderPsid: string,
     lastUserMessage: string,
     config: any,
-    productRecommendations: any[] = []
+    productRecommendations: any[] = [],
+    hasPhoneNumber: boolean = false
   ): Promise<string | null> {
     try {
       // Get recent conversation history
       const convData = await this.chatService.getConversation(fanpage._id.toString(), senderPsid);
       const recentMessages = convData.messages.slice(0, 10).reverse();
+      
+      // Analyze customer intent for better sales approach
+      const customerIntent = this.analyzeCustomerIntent(lastUserMessage, recentMessages);
 
-      // Build system prompt with product recommendations
-      let systemPrompt = `Bạn là trợ lý AI thân thiện của fanpage "${fanpage.name}". `;
+      // Build system prompt focused on lead generation and sales conversion
+      let systemPrompt = `Bạn là chuyên viên tư vấn bán hàng AI của fanpage "${fanpage.name}". `;
       
       if (fanpage.description) {
         systemPrompt += `Thông tin kinh doanh: ${fanpage.description.slice(0, 400)}. `;
@@ -485,12 +509,76 @@ export class MessengerWebhookController {
           }
           systemPrompt += `\n`;
         });
-        systemPrompt += `Hãy giới thiệu những sản phẩm này một cách tự nhiên và hấp dẫn.\n`;
+        systemPrompt += `Hãy giới thiệu những sản phẩm này một cách hấp dẫn và tạo cảm giác cần thiết.\n`;
       }
       
-      systemPrompt += `Hãy trả lời ngắn gọn (1-2 câu), thân thiện bằng tiếng Việt dựa trên lịch sử hội thoại. `;
-      systemPrompt += `Nếu cần tư vấn chi tiết, nói: "Mình đã ghi nhận, nhân viên sẽ hỗ trợ chi tiết sớm!". `;
-      systemPrompt += `Không bịa thông tin không có.`;
+      // Dynamic sales strategy based on customer intent
+      systemPrompt += `\n**CHIẾN LƯỢC BÁN HÀNG THÔNG MINH:**\n`;
+      
+      if (customerIntent.isHighIntent) {
+        systemPrompt += `🎯 **KHÁCH CÓ Ý ĐỊNH CAO** - Tập trung chốt đơn!\n`;
+        systemPrompt += `- Xin số điện thoại NGAY: "Để đặt hàng nhanh, bạn cho shop số điện thoại nhé!"\n`;
+        systemPrompt += `- Tạo cấp bách: "Hàng này đang hot lắm, để shop book trước cho bạn"\n`;
+      } else if (customerIntent.isPriceInquiry) {
+        systemPrompt += `💰 **KHÁCH HỎI GIÁ** - Cơ hội vàng!\n`;
+        systemPrompt += `- Báo giá + tặng kèm ưu đãi\n`;
+        systemPrompt += `- Ngay sau đó XIN SỐ ĐIỆN THOẠI: "Để báo giá chi tiết, cho shop số điện thoại nhé!"\n`;
+      } else if (customerIntent.isHesitant) {
+        systemPrompt += `🤔 **KHÁCH DO DỰ** - Cần thuyết phục!\n`;
+        systemPrompt += `- Đưa ra bằng chứng: review, cam kết, bảo hành\n`;
+        systemPrompt += `- Tặng ưu đãi đặc biệt để khuyến khích\n`;
+        systemPrompt += `- Xin số điện thoại để "tư vấn kỹ hơn"\n`;
+      } else {
+        systemPrompt += `📞 **XIN SỐ ĐIỆN THOẠI** - Ưu tiên cao nhất!\n`;
+        systemPrompt += `- "Để tư vấn chi tiết hơn, cho shop xin số điện thoại được không?"\n`;
+        systemPrompt += `- "Shop sẽ gọi báo giá tốt nhất, bạn để lại số điện thoại nhé"\n`;
+      }
+      
+      systemPrompt += `\n**CÁC CHIẾN THUẬT CHUNG:**\n`;
+      systemPrompt += `1. **TẠO CẢM GIÁC KHAN HIẾM**: "Hàng này đang hot, số lượng có hạn"\n`;
+      systemPrompt += `2. **ƯU ĐÃI GIỚI HẠN**: "Hôm nay có chương trình đặc biệt"\n`;
+      systemPrompt += `3. **CHỐT ĐON NHANH**: "Bạn đặt luôn không? Giao ngay hôm nay"\n`;
+      systemPrompt += `4. **XỬ LÝ PHẢN ĐỐI**: Do dự → hỏi lý do → giải quyết\n`;
+      systemPrompt += `5. **TẠO LÒNG TIN**: Chia sẻ review khách, cam kết chất lượng\n\n`;
+      
+      // Special handling when phone number is captured
+      if (hasPhoneNumber) {
+        systemPrompt += `\n🎉 **KHÁCH ĐÃ CUNG CẤP SỐ ĐIỆN THOẠI!**\n`;
+        systemPrompt += `- Cảm ơn khách và xác nhận sẽ gọi lại sớm\n`;
+        systemPrompt += `- Hỏi thời gian thuận tiện để gọi\n`;
+        systemPrompt += `- Tạo cảm giác an tâm: "Shop sẽ gọi tư vấn kỹ và báo giá tốt nhất"\n`;
+        systemPrompt += `- Khuyến khích đặt trước: "Bạn có muốn đặt trước để được ưu đãi không?"\n`;
+        systemPrompt += `- Tập trung CHỐT ĐƠN ngay lập tức\n\n`;
+      }
+      
+      systemPrompt += `**QUY TẮC PHẢN HỒI:**\n`;
+      if (hasPhoneNumber) {
+        systemPrompt += `- ƯU TIÊN CHỐT ĐƠN! Khách đã tin tưởng đưa số điện thoại\n`;
+        systemPrompt += `- Tạo cảm giác cấp bách: "Để đảm bảo có hàng, bạn đặt trước nhé"\n`;
+        systemPrompt += `- Hỏi thời gian gọi lại: "Khoảng mấy giờ shop gọi cho bạn?"\n`;
+      } else {
+        systemPrompt += `- Luôn hướng đến mục tiêu XIN SỐ ĐIỆN THOẠI và CHỐT ĐƠN\n`;
+        systemPrompt += `- Nếu khách hỏi giá, báo giá rồi ngay lập tức xin số điện thoại\n`;
+      }
+      systemPrompt += `- Trả lời ngắn gọn (2-3 câu), thân thiện, tạo cảm giác gần gũi\n`;
+      systemPrompt += `- Sử dụng emoji phù hợp để tạo cảm xúc tích cực 😊🔥✨\n`;
+      systemPrompt += `- Không bịa thông tin không có, nhưng tạo cảm giác sản phẩm hấp dẫn\n`;
+      systemPrompt += `- Nếu cần hỗ trợ phức tạp: "Để tư vấn chi tiết, cho shop số điện thoại nhé!"\n\n`;
+      
+      // Add closing templates based on intent
+      systemPrompt += `**TEMPLATE CHỐT ĐƠN HIỆU QUẢ:**\n`;
+      if (customerIntent.isHighIntent) {
+        systemPrompt += `- "Bạn quyết định luôn nhé! Shop pack hàng ngay bây giờ 📦"\n`;
+        systemPrompt += `- "Để đảm bảo có hàng, bạn đặt trước cho shop số điện thoại nhé!"\n`;
+      } else if (customerIntent.isPriceInquiry) {
+        systemPrompt += `- "Giá này chỉ có hôm nay thôi! Bạn cho shop số điện thoại để đặt nhé"\n`;
+        systemPrompt += `- "Để được giá tốt nhất, bạn để lại số điện thoại shop tư vấn kỹ"\n`;
+      } else {
+        systemPrompt += `- "Để shop tư vấn phù hợp nhất, bạn cho số điện thoại được không? 📞"\n`;
+        systemPrompt += `- "Shop gọi báo giá chi tiết, bạn để lại số điện thoại giúp shop nhé!"\n`;
+      }
+      
+      systemPrompt += `\n💡 **LƯU Ý**: Luôn kết thúc bằng call-to-action rõ ràng (xin SĐT hoặc chốt đơn)!`;
 
       // Prepare messages for OpenAI
       const promptMessages = [
@@ -589,6 +677,37 @@ export class MessengerWebhookController {
       }
       return false;
     }
+  }
+
+  /**
+   * Analyze customer intent to optimize sales approach
+   */
+  private analyzeCustomerIntent(message: string, recentMessages: any[]): any {
+    const msgLower = message.toLowerCase();
+    const allMessages = recentMessages.map(m => m.content.toLowerCase()).join(' ');
+    
+    return {
+      // Purchase readiness signals
+      isHighIntent: /\b(mua|đặt|order|cần|muốn|tìm|quan tâm)\b/.test(msgLower),
+      isPriceInquiry: /\b(giá|bao nhiêu|chi phí|tiền|cost|price)\b/.test(msgLower),
+      isUrgent: /\b(gấp|nhanh|ngay|hôm nay|urgent|asap)\b/.test(msgLower),
+      isComparing: /\b(so sánh|khác|compare|khác gì|tương tự)\b/.test(msgLower),
+      
+      // Objection signals
+      isHesitant: /\b(nghĩ|xem|cân nhắc|chưa chắc|maybe|perhaps)\b/.test(msgLower),
+      isPriceObjection: /\b(đắt|rẻ|expensive|cheap|giảm giá|discount)\b/.test(msgLower),
+      isTrustConcern: /\b(tin|uy tín|chất lượng|fake|hàng thật|trust)\b/.test(msgLower),
+      
+      // Information seeking
+      needsDetails: /\b(thông tin|detail|mô tả|tính năng|spec|specification)\b/.test(msgLower),
+      needsProof: /\b(review|đánh giá|feedback|chứng minh|proof)\b/.test(msgLower),
+      
+      // Conversation stage
+      conversationLength: recentMessages.length,
+      hasAskedPrice: allMessages.includes('giá') || allMessages.includes('price'),
+      hasShownInterest: allMessages.includes('thích') || allMessages.includes('quan tâm'),
+      isReturnCustomer: recentMessages.length > 5
+    };
   }
 
 
