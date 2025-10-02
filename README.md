@@ -1,6 +1,8 @@
-# Final6 - Hệ Thống Quản Lý Doanh Nghiệp
+# 🚀 Management System - Final7
 
-Hệ thống quản lý toàn diện cho doanh nghiệp với backend NestJS + MongoDB và frontend Angular.
+## 📋 Tổng Quan Hệ Thống
+
+Hệ thống quản lý toàn diện với NestJS backend + MongoDB và Angular frontend, đã được phát triển hoàn chỉnh và đẩy lên repository mới.
 
 ## 🔥 Quick Setup
 
