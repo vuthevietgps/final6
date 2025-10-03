@@ -136,6 +136,12 @@
             <label>Địa Chỉ<textarea rows="2" [ngModel]="orderDraft()?.address" (ngModelChange)="setDraftField('address',$event)"></textarea></label>
             <label>Số lượng<input type="number" min="1" [ngModel]="orderDraft()?.quantity" (ngModelChange)="setDraftField('quantity',$event)"/></label>
             <label>Ad Group<input [ngModel]="orderDraft()?.adGroupId" (ngModelChange)="setDraftField('adGroupId',$event)"/></label>
+            <label>Đại lý
+              <select [ngModel]="orderDraft()?.agentId" (ngModelChange)="setDraftField('agentId',$event)">
+                <option value="">-- Chọn đại lý --</option>
+                <option *ngFor="let a of agents()" [value]="a._id">{{ a.fullName }} ({{ a.role }})</option>
+              </select>
+            </label>
             <label>Ghi chú<textarea rows="2" [ngModel]="orderDraft()?.notes" (ngModelChange)="setDraftField('notes',$event)"></textarea></label>
           </div>
           <div class="draft-actions">

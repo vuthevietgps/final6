@@ -3,7 +3,7 @@ import { Component, signal, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ChatMessageService, ConversationSummary, ChatMessage } from './chat-message.service';
-import { PendingOrderService, PendingOrder } from './pending-order.service';
+import { PendingOrderService, PendingOrder, AgentOption } from './pending-order.service';
 import { ProductService } from '../product/product.service';
 import { Product } from '../product/models/product.interface';
 
@@ -40,6 +40,7 @@ export class ConversationListComponent implements OnInit, OnDestroy {
   approveLoading = signal(false);
   extractSuggestions = signal<any|undefined>(undefined);
   products = signal<Product[]>([]);
+  agents = signal<AgentOption[]>([]);
   // auto refresh time every 30s for time-ago display
   private interval?: any;
 
@@ -60,6 +61,8 @@ export class ConversationListComponent implements OnInit, OnDestroy {
     this.interval = setInterval(()=> this.now.set(Date.now()), 30000);
     // preload limited products (could enhance with pagination later)
     this.productSvc.getAll().subscribe({ next: list => this.products.set(list.slice(0,200)), error: _=>{} });
+    // load agents list for assignment
+    this.pendingSvc.listAgents().subscribe({ next: list => this.agents.set(list), error: _=>{} });
   }
 
   updateFilter<K extends keyof ReturnType<typeof this.filter>>(key: K, value: any){ this.filter.update(f=> ({...f,[key]: value})); }

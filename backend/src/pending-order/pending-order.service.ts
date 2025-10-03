@@ -20,6 +20,24 @@ export class PendingOrderService {
 
   create(dto: CreatePendingOrderDto) { return new this.model(dto).save(); }
 
+  /**
+   * Lấy danh sách đại lý (user có thể gán cho đơn) – tái sử dụng logic tương tự test-order2.
+   * Chỉ lấy các role có tham gia xử lý đơn hàng, loại bỏ user inactive.
+   */
+  async getAgents() {
+    const roles = ['director','manager','employee','internal_agent','external_agent'];
+    const users = await this.conn.collection('users').find(
+      { role: { $in: roles }, isActive: { $ne: false } },
+      { projection: { _id: 1, fullName: 1, email: 1, role: 1 } }
+    ).limit(500).toArray();
+    return users.map(u => ({
+      _id: u._id,
+      fullName: (u as any).fullName || (u as any).email,
+      email: (u as any).email,
+      role: (u as any).role
+    }));
+  }
+
   findAll(query: any = {}) {
     const filter: FilterQuery<PendingOrderDocument> = {};
     if (query.fanpageId) filter.fanpageId = query.fanpageId;
