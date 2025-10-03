@@ -42,28 +42,23 @@ export class RolesGuard implements CanActivate {
     const userRole = (user.role || '').toLowerCase();
     const rolePermissions: Record<string, string[]> = {
       'director': [
-  'users', 'orders', 'products', 'product-categories',
-        'delivery-status', 'production-status', 'order-status',
-  'ad-accounts', 'ad-groups', 'advertising-costs',
-  'labor-costs', 'other-costs', 'salary-config',
-  // Newly explicit permissions
-  'customers', 'purchase-costs', 'fanpages', 'openai-configs',
-  'quotes', 'reports', 'export', 'import', 'settings', 'admin'
+        'users','orders','pending-orders','products','product-categories',
+        'delivery-status','production-status','order-status',
+        'ad-accounts','ad-groups','advertising-costs',
+        'labor-costs','other-costs','salary-config',
+        'customers','purchase-costs','fanpages','openai-configs',
+        'quotes','reports','export','import','settings','admin'
       ],
       'manager': [
-        // Orders
-        'orders',
-        // Advertising
-  'ad-accounts', 'ad-groups', 'advertising-costs', 'fanpages', 'openai-configs'
+        'orders','pending-orders',
+        'ad-accounts','ad-groups','advertising-costs','fanpages','openai-configs'
       ],
       'employee': [
-        // Orders only
-        'orders'
+        'orders','pending-orders'
       ],
-      // Các vai trò khác giữ nguyên như cũ (có thể tinh chỉnh sau)
-      'internal_agent': ['orders', 'delivery-status', 'products'],
-      'external_agent': ['orders', 'delivery-status'],
-      'internal_supplier': ['products', 'quotes'],
+      'internal_agent': ['orders','pending-orders','delivery-status','products'],
+      'external_agent': ['orders','pending-orders','delivery-status'],
+      'internal_supplier': ['products','quotes'],
       'external_supplier': ['quotes']
     };
 
