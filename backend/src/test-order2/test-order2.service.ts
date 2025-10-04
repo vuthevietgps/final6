@@ -55,46 +55,63 @@ export class TestOrder2Service {
 
     const saved = await new this.model(payload).save();
     
-    // Trigger post-create sync operations (fire-and-forget)
-    this.triggerPostCreateSyncs(saved);
+    // Trigger post-create sync operations (fire-and-forget, không block response)
+    setImmediate(() => {
+      this.triggerPostCreateSyncs(saved).catch(err => {
+        this.logger.error(`Post-create sync failed for order ${saved._id}:`, err.message || err);
+      });
+    });
     
     return saved;
   }
 
   /**
    * Trigger các sync operations sau khi tạo đơn hàng
-   * Sử dụng fire-and-forget pattern để không block response
+   * Đảm bảo Summary4 sync hoàn thành trước khi Google sync
    */
-  private triggerPostCreateSyncs(savedDoc: TestOrder2Document): void {
+  private async triggerPostCreateSyncs(savedDoc: TestOrder2Document): Promise<void> {
     const orderId = String(savedDoc._id);
     const agentId = String(savedDoc.agentId);
     const orderDate = new Date(savedDoc.createdAt);
 
-    // Sync Summary4
-    this.summary4Sync.syncFromTestOrder2().catch(err => {
-      this.logger.error(`Summary4 sync failed after create ${orderId}:`, err.message);
-    });
+    try {
+      // 1. Sync Summary4 FIRST và đợi hoàn thành (chỉ sync order này)
+      this.logger.log(`Starting Summary4 sync for order ${orderId}...`);
+      const syncResult = await this.summary4Sync.syncSingleOrder(orderId);
+      this.logger.log(`✅ Summary4 sync completed for order ${orderId}`);
 
-    // Sync Summary5 theo ngày
-    const startDate = new Date(orderDate);
-    startDate.setHours(0, 0, 0, 0);
-    const endDate = new Date(orderDate);
-    endDate.setHours(23, 59, 59, 999);
+      // 2. Sync Summary5 theo ngày (parallel với Google sync)
+      const startDate = new Date(orderDate);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(orderDate);
+      endDate.setHours(23, 59, 59, 999);
 
-    this.summary5Service
-      .sync({ 
-        startDate: startDate.toISOString(), 
-        endDate: endDate.toISOString() 
-      })
-      .catch(err => {
-        this.logger.error(`Summary5 sync failed after create ${orderId}:`, err.message || err);
-      });
-    
-    // Sync Google Sheets theo agent (after Summary4 sync)
-    if (agentId && agentId !== 'undefined' && agentId !== 'null') {
-      // Schedule Google Sync với delay 3 seconds để đảm bảo Summary4 sync hoàn thành trước
-      this.summary4GoogleSync.scheduleSyncAgent(agentId, 3000);
-      this.logger.log(`Scheduled Google Sync for agent ${agentId} after creating order ${orderId}`);
+      this.summary5Service
+        .sync({ 
+          startDate: startDate.toISOString(), 
+          endDate: endDate.toISOString() 
+        })
+        .catch(err => {
+          this.logger.error(`Summary5 sync failed after create ${orderId}:`, err.message || err);
+        });
+      
+      // 3. Sync Google Sheets cho TẤT CẢ agents bị ảnh hưởng (thường chỉ 1 agent khi create)
+      if (syncResult.success && syncResult.agentIds) {
+        syncResult.agentIds.forEach((agentId, index) => {
+          if (agentId && agentId !== 'undefined' && agentId !== 'null') {
+            const delay = 1000 + (index * 500); // Stagger calls
+            this.summary4GoogleSync.scheduleSyncAgent(agentId, delay);
+            this.logger.log(`✅ Scheduled Google Sync for agent ${agentId} after Summary4 sync (delay: ${delay}ms)`);
+          }
+        });
+      }
+    } catch (error) {
+      this.logger.error(`Summary4 sync failed for order ${orderId}:`, error.message || error);
+      // Vẫn cố gắng Google sync dù Summary4 fail (chỉ sync agent hiện tại)
+      if (agentId && agentId !== 'undefined' && agentId !== 'null') {
+        this.summary4GoogleSync.scheduleSyncAgent(agentId, 2000);
+        this.logger.log(`Scheduled fallback Google Sync for agent ${agentId} despite Summary4 error`);
+      }
     }
   }
 
@@ -226,35 +243,61 @@ export class TestOrder2Service {
    * Sử dụng fire-and-forget pattern để không block response
    */
   private triggerPostUpdateSyncs(updatedDoc: TestOrder2Document): void {
+    // Fire-and-forget pattern để không block response
+    setImmediate(() => {
+      this.performPostUpdateSyncs(updatedDoc).catch(err => {
+        this.logger.error(`Post-update sync failed for order ${updatedDoc._id}:`, err.message || err);
+      });
+    });
+  }
+
+  private async performPostUpdateSyncs(updatedDoc: TestOrder2Document): Promise<void> {
     const orderId = String(updatedDoc._id);
     const agentId = String(updatedDoc.agentId);
     const orderDate = new Date(updatedDoc.createdAt);
 
-    // Sync Summary4
-    this.summary4Sync.syncFromTestOrder2().catch(err => {
-      this.logger.error(`Summary4 sync failed after update ${orderId}:`, err.message);
-    });
+    try {
+      // 1. Sync Summary4 FIRST và đợi hoàn thành (chỉ sync order này)
+      this.logger.log(`Starting Summary4 sync for updated order ${orderId}...`);
+      const syncResult = await this.summary4Sync.syncSingleOrder(orderId);
+      this.logger.log(`✅ Summary4 sync completed for updated order ${orderId}`);
 
-    // Sync Summary5 theo ngày
-    const startDate = new Date(orderDate);
-    startDate.setHours(0, 0, 0, 0);
-    const endDate = new Date(orderDate);
-    endDate.setHours(23, 59, 59, 999);
+      // 2. Sync Summary5 theo ngày (parallel với Google sync)
+      const startDate = new Date(orderDate);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(orderDate);
+      endDate.setHours(23, 59, 59, 999);
 
-    this.summary5Service
-      .sync({ 
-        startDate: startDate.toISOString(), 
-        endDate: endDate.toISOString() 
-      })
-      .catch(err => {
-        this.logger.error(`Summary5 sync failed after update ${orderId}:`, err.message || err);
-      });
-    
-    // Sync Google Sheets theo agent (after Summary4 sync)
-    if (agentId && agentId !== 'undefined' && agentId !== 'null') {
-      // Schedule Google Sync với delay 3 seconds để đảm bảo Summary4 sync hoàn thành trước
-      this.summary4GoogleSync.scheduleSyncAgent(agentId, 3000);
-      this.logger.log(`Scheduled Google Sync for agent ${agentId} after updating order ${orderId}`);
+      this.summary5Service
+        .sync({ 
+          startDate: startDate.toISOString(), 
+          endDate: endDate.toISOString() 
+        })
+        .catch(err => {
+          this.logger.error(`Summary5 sync failed after update ${orderId}:`, err.message || err);
+        });
+      
+      // 3. Sync Google Sheets cho TẤT CẢ agents bị ảnh hưởng (cũ + mới nếu có)
+      if (syncResult.success && syncResult.agentIds) {
+        syncResult.agentIds.forEach((agentId, index) => {
+          if (agentId && agentId !== 'undefined' && agentId !== 'null') {
+            const delay = 1000 + (index * 500); // Stagger calls
+            this.summary4GoogleSync.scheduleSyncAgent(agentId, delay);
+            this.logger.log(`✅ Scheduled Google Sync for agent ${agentId} after Summary4 update sync (delay: ${delay}ms)`);
+          }
+        });
+
+        if (syncResult.oldAgentId && syncResult.newAgentId) {
+          this.logger.log(`🔄 Agent change detected: ${syncResult.oldAgentId} → ${syncResult.newAgentId}, syncing both`);
+        }
+      }
+    } catch (error) {
+      this.logger.error(`Summary4 sync failed for updated order ${orderId}:`, error.message || error);
+      // Vẫn cố gắng Google sync dù Summary4 fail (chỉ sync agent hiện tại)
+      if (agentId && agentId !== 'undefined' && agentId !== 'null') {
+        this.summary4GoogleSync.scheduleSyncAgent(agentId, 2000);
+        this.logger.log(`Scheduled fallback Google Sync for agent ${agentId} despite Summary4 update error`);
+      }
     }
   }
 
@@ -734,7 +777,7 @@ export class TestOrder2Service {
     }
 
     // Trigger sync Summary4 and Summary5 for the day
-    this.summary4Sync.syncFromTestOrder2().catch(err => {
+    this.summary4Sync.syncSingleOrder(doc._id.toString()).catch(err => {
       console.error('Failed to sync Summary4 after import update:', err);
     });
     {
@@ -826,7 +869,7 @@ export class TestOrder2Service {
       }
 
       // Trigger sync Summary4 và Summary5
-      this.summary4Sync.syncFromTestOrder2().catch(err => {
+      this.summary4Sync.syncSingleOrder(doc._id.toString()).catch(err => {
         console.error('Failed to sync Summary4 after delivery update:', err);
       });
 

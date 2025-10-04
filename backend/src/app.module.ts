@@ -13,6 +13,8 @@
  */
 
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import * as path from 'path';
 import { MongooseModule } from '@nestjs/mongoose';
 import { MulterModule } from '@nestjs/platform-express';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -26,7 +28,6 @@ import { AdvertisingCostSuggestionModule } from './advertising-cost-suggestion/a
 import { AuthModule } from './auth/auth.module';
 import { DeliveryStatusModule } from './delivery-status/delivery-status.module';
 import { ExportUserModule } from './export-user/export-user.module';
-import { GoogleCredentialModule } from './google-credential/google-credential.module';
 import { GoogleSyncModule } from './google-sync/google-sync.module';
 import { HealthModule } from './health/health.module';
 import { ImportUserModule } from './import-user/import-user.module';
@@ -56,6 +57,19 @@ import { FacebookTokenModule } from './facebook-token/facebook-token.module';
 
 @Module({
   imports: [
+    // Load environment variables globally from multiple possible locations (robust to different CWDs)
+    ConfigModule.forRoot({
+      isGlobal: true,
+      // Try several common locations so dev/prod and root/backend CWDs all work
+      envFilePath: [
+        '.env',
+        path.resolve(process.cwd(), '.env'),
+        path.resolve(process.cwd(), 'backend', '.env'),
+        path.resolve(__dirname, '..', '.env'),
+        path.resolve(__dirname, '..', '..', '.env'),
+      ],
+      ignoreEnvFile: false,
+    }),
     // Bật scheduler để dùng cron job
     ScheduleModule.forRoot(),
 
@@ -88,9 +102,6 @@ import { FacebookTokenModule } from './facebook-token/facebook-token.module';
 
     // Import ImportUserModule để sử dụng các chức năng nhập CSV
     ImportUserModule,
-
-    // Import GoogleCredentialModule để quản lý Google Service Account Credentials
-    GoogleCredentialModule,
 
     // Import ProductionStatusModule để quản lý trạng thái sản xuất
     ProductionStatusModule,

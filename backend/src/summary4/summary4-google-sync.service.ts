@@ -27,6 +27,12 @@ export class Summary4GoogleSyncService {
    * Schedule sync với debounce (delay 2 giây để gộp các thay đổi liên tiếp)
    */
   scheduleSyncAgent(agentId: string, delayMs: number = 2000): void {
+    // Check if Google Sync is disabled
+    if (process.env.GOOGLE_SYNC_DISABLED === 'true') {
+      this.logger.log(`Google Sync is disabled, skipping schedule for agent ${agentId}`);
+      return;
+    }
+
     // Clear existing timeout
     if (this.pendingByAgent.has(agentId)) {
       clearTimeout(this.pendingByAgent.get(agentId)!);
@@ -51,6 +57,12 @@ export class Summary4GoogleSyncService {
    * Đồng bộ Summary4 của một agent lên Google Sheet
    */
   async syncAgentSummary4(agentId: string): Promise<void> {
+    // Check if Google Sync is disabled
+    if (process.env.GOOGLE_SYNC_DISABLED === 'true') {
+      this.logger.log(`Google Sync is disabled, skipping sync for agent ${agentId}`);
+      return;
+    }
+
     this.logger.log(`Starting Summary4 sync for agent ${agentId}...`);
     
     const data = await this.buildSummary4ForAgent(agentId);
@@ -244,6 +256,17 @@ export class Summary4GoogleSyncService {
    * Sync all agents that have Google Drive links
    */
   async syncAllAgents(): Promise<{ total: number; success: number; failed: number; errors: string[] }> {
+    // Check if Google Sync is disabled
+    if (process.env.GOOGLE_SYNC_DISABLED === 'true') {
+      this.logger.log('Google Sync is disabled, skipping sync all agents');
+      return {
+        total: 0,
+        success: 0,
+        failed: 0,
+        errors: ['Google Sync is disabled via GOOGLE_SYNC_DISABLED environment variable'],
+      };
+    }
+
     const users = await this.userModel
       .find({ 
         googleDriveLink: { 
@@ -274,4 +297,6 @@ export class Summary4GoogleSyncService {
     this.logger.log(`Summary4 sync all completed: ${result.success}/${result.total} successful`);
     return result;
   }
+
+
 }

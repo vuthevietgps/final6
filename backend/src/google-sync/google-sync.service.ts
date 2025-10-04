@@ -89,7 +89,34 @@ export class GoogleSyncService {
         return jwtClient;
       }
 
-      const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  // Prefer explicit env var first
+  let credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  const backendRootEnv = process.env.BACKEND_ROOT;
+  const debugPieces: string[] = [];
+  debugPieces.push(`CWD=${process.cwd()}`);
+  debugPieces.push(`__dirname=${__dirname}`);
+  if (credPath) debugPieces.push(`GOOGLE_APPLICATION_CREDENTIALS(raw)=${credPath}`);
+  if (backendRootEnv) debugPieces.push(`BACKEND_ROOT=${backendRootEnv}`);
+
+      // If provided as relative path, resolve from process.cwd() and also from project backend root
+      if (credPath && !path.isAbsolute(credPath)) {
+        const attempts: string[] = [];
+        const tryPaths = [
+          path.resolve(process.cwd(), credPath),
+          backendRootEnv ? path.resolve(backendRootEnv, credPath) : '',
+          path.resolve(__dirname, '..', '..', credPath), // dist/src -> backend
+          path.resolve(__dirname, '..', '..', '..', credPath), // extra fallback
+        ].filter(Boolean) as string[];
+        for (const p of tryPaths) {
+          attempts.push(p);
+          if (fs.existsSync(p)) {
+            credPath = p;
+            break;
+          }
+        }
+        debugPieces.push(`rel attempts=${attempts.join(' | ')}`);
+      }
+
       if (credPath && fs.existsSync(credPath)) {
         const auth = new google.auth.GoogleAuth({
           keyFile: credPath,
@@ -99,7 +126,25 @@ export class GoogleSyncService {
         return await auth.getClient();
       }
 
+      // Fallback discovery: common locations
+      const candidates = [
+        path.resolve(process.cwd(), 'dongbodulieuweb-8de0c9a12896.json'),
+        path.resolve(process.cwd(), 'backend', 'dongbodulieuweb-8de0c9a12896.json'),
+        backendRootEnv ? path.resolve(backendRootEnv, 'dongbodulieuweb-8de0c9a12896.json') : '',
+        path.resolve(__dirname, '..', '..', 'dongbodulieuweb-8de0c9a12896.json'),
+        path.resolve(__dirname, '..', '..', '..', 'dongbodulieuweb-8de0c9a12896.json'),
+        'D:\\code\\final2\\backend\\dongbodulieuweb-8de0c9a12896.json',
+      ].filter(Boolean);
+      for (const p of candidates) {
+        if (fs.existsSync(p)) {
+          const auth = new google.auth.GoogleAuth({ keyFile: p, scopes: ['https://www.googleapis.com/auth/spreadsheets'] });
+          this.logger.log(`Google Auth: fallback credentials detected at ${p}`);
+          return await auth.getClient();
+        }
+      }
+
       this.logger.warn('Không tìm thấy Google credentials (GOOGLE_CREDENTIALS_JSON hoặc GOOGLE_APPLICATION_CREDENTIALS)');
+      this.logger.warn(`Auth debug: ${debugPieces.join(' | ')}`);
       return null;
     } catch (error) {
       this.logger.error('Lỗi Google Auth:', error);

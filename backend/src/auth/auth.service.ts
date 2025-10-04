@@ -164,7 +164,7 @@ export class AuthService {
   'labor-costs', 'other-costs', 'salary-config',
   // Newly explicit permissions
   'customers', 'purchase-costs',
-  'quotes', 'reports', 'export', 'import', 'settings', 'admin'
+  'quotes', 'reports', 'export', 'import', 'settings'
       ],
       'manager': [
         'orders', // Đơn hàng

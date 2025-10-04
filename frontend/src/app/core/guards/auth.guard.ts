@@ -17,34 +17,27 @@ export class AuthGuard implements CanActivate {
     route: ActivatedRouteSnapshot,
     state: RouterStateSnapshot
   ): Observable<boolean> | Promise<boolean> | boolean {
-    
-    // Kiểm tra nếu đã authenticated
-    if (this.authService.isAuthenticated()) {
-      return this.validatePermissions(route);
-    }
-
-    // Nếu có token, validate với server
+    // Luôn yêu cầu token hợp lệ từ server trước khi vào route được bảo vệ
     const token = this.authService.getToken();
-    if (token) {
-      return this.authService.validateToken().pipe(
-        map(isValid => {
-          if (isValid) {
-            return this.validatePermissions(route);
-          } else {
-            this.router.navigate(['/login'], { queryParams: { returnUrl: state.url } });
-            return false;
-          }
-        }),
-        catchError(() => {
-          this.router.navigate(['/login'], { queryParams: { returnUrl: state.url } });
-          return of(false);
-        })
-      );
+    if (!token) {
+      this.router.navigate(['/login'], { queryParams: { returnUrl: state.url } });
+      return false;
     }
 
-    // Không có token, redirect to login
-    this.router.navigate(['/login'], { queryParams: { returnUrl: state.url } });
-    return false;
+    return this.authService.validateToken().pipe(
+      map(isValid => {
+        if (isValid) {
+          return this.validatePermissions(route);
+        } else {
+          this.router.navigate(['/login'], { queryParams: { returnUrl: state.url } });
+          return false;
+        }
+      }),
+      catchError(() => {
+        this.router.navigate(['/login'], { queryParams: { returnUrl: state.url } });
+        return of(false);
+      })
+    );
   }
 
   private validatePermissions(route: ActivatedRouteSnapshot): boolean {

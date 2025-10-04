@@ -47,7 +47,7 @@ export class RolesGuard implements CanActivate {
         'ad-accounts','ad-groups','advertising-costs','api-tokens',
         'labor-costs','other-costs','salary-config',
         'customers','purchase-costs','fanpages','openai-configs',
-        'quotes','reports','export','import','settings','admin'
+        'quotes','reports','export','import','settings'
       ],
       'manager': [
         'orders','pending-orders',

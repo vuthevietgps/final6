@@ -26,4 +26,10 @@ export class GoogleSyncController {
       }
     };
   }
+
+  /** Auth debug: quickly check if credentials can be loaded */
+  @Get('auth-debug')
+  async authDebug() {
+    return this.svc.authDebugInfo();
+  }
 }

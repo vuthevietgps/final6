@@ -97,6 +97,11 @@ export class Summary4Controller {
     return this.summary4Service.syncFromTestOrder2();
   }
 
+  @Post('sync-single/:orderId')
+  syncSingleOrder(@Param('orderId') orderId: string) {
+    return this.summary4Service.syncSingleOrder(orderId);
+  }
+
   @Post('sync-google/:agentId')
   async syncToGoogle(@Param('agentId') agentId: string) {
     try {

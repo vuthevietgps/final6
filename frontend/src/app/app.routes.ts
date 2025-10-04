@@ -41,6 +41,10 @@ export const routes: Routes = [
     path: 'unauthorized',
     loadComponent: () => import('./features/auth/unauthorized/unauthorized.component').then(m => m.UnauthorizedComponent)
   },
+  {
+    path: 'clear-storage',
+    loadComponent: () => import('./features/clear-storage/clear-storage.component').then(m => m.ClearStorageComponent)
+  },
   
   // Dashboard (default after login)
   {
@@ -178,12 +182,7 @@ export const routes: Routes = [
   { path: '', redirectTo: 'ad-group-profit-report', pathMatch: 'full' }
     ]
   },
-  {
-    path: 'google-credential',
-    loadComponent: () => import('./features/google-credential/google-credential.component').then(m => m.GoogleCredentialComponent),
-    canActivate: [AuthGuard],
-    data: { permissions: ['admin'] }
-  },
+
   {
     path: 'settings',
     loadComponent: () => import('./core/components/coming-soon.component').then(m => m.ComingSoonComponent),

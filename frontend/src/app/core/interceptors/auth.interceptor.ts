@@ -24,9 +24,22 @@ export class AuthInterceptor implements HttpInterceptor {
     // Xử lý response và catch errors
     return next.handle(authReq).pipe(
       catchError((error: HttpErrorResponse) => {
-        // Nếu 401 Unauthorized, logout user
+        // Nếu 401 Unauthorized, có thể gây vòng lặp nếu chính request là /session-logs/logout
         if (error.status === 401) {
-          this.authService.logout();
+          const url = authReq.url || '';
+          const skip = authReq.headers.has('X-Skip-Auth-Handling');
+          const isLogoutCall = url.includes('/session-logs/logout');
+          const isLoginOrValidate = url.includes('/auth/login') || url.includes('/auth/validate-token');
+          // Bỏ qua auto-logout cho những request đặc biệt để tránh lặp vô hạn
+          if (!skip && !isLogoutCall) {
+            // Với validate-token trả 401: đăng xuất cục bộ nhanh gọn
+            if (isLoginOrValidate) {
+              this.authService.forceLogout();
+            } else {
+              // Endpoint khác trả 401: chỉ đăng xuất cục bộ, không gọi logout API để tránh 401 lặp
+              this.authService.forceLogout();
+            }
+          }
         }
         return throwError(() => error);
       })

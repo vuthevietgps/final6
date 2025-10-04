@@ -2,7 +2,7 @@
  * Summary4 Service - Báo cáo tổng hợp với tính toán chi phí và lợi nhuận
  * Features: Sync từ TestOrder2, cleanup orphaned records, export Excel
  */
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as XLSX from 'xlsx';
@@ -15,9 +15,10 @@ import { Product, ProductDocument } from '../product/schemas/product.schema';
 import { Summary5Service } from '../summary5/summary5.service';
 import { Summary4FilterDto } from './dto/summary4-filter.dto';
 import { UpdateManualPaymentDto } from './dto/update-manual-payment.dto';
+import { Summary4GoogleSyncService } from './summary4-google-sync.service';
 
 @Injectable()
-export class Summary4Service {
+export class Summary4Service implements OnModuleInit {
   private readonly logger = new Logger(Summary4Service.name);
   private readonly debugEnabled = process.env.DEBUG_SUMMARY4 === 'true';
 
@@ -28,7 +29,33 @@ export class Summary4Service {
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     @InjectModel(Product.name) private readonly productModel: Model<ProductDocument>,
     private readonly summary5Service: Summary5Service,
+    @Inject(forwardRef(() => Summary4GoogleSyncService))
+    private readonly summary4GoogleSyncService: Summary4GoogleSyncService,
   ) {}
+
+  onModuleInit() {
+    this.logger.log('Summary4Service initialized with Google Sync Service');
+  }
+
+  /**
+   * Trigger Google Sheets sync for affected agents
+   */
+  private triggerGoogleSync(agentIds: string[]): void {
+    if (!this.summary4GoogleSyncService) {
+      this.logger.warn('Google Sync Service not available');
+      return;
+    }
+
+    // Trigger sync for each unique agent with delay
+    const uniqueAgentIds = [...new Set(agentIds.filter(id => id && id !== 'undefined' && id !== 'null'))];
+    
+    uniqueAgentIds.forEach((agentId, index) => {
+      // Stagger the sync calls to avoid overwhelming
+      const delay = 1000 + (index * 500);
+      this.summary4GoogleSyncService.scheduleSyncAgent(agentId, delay);
+      this.logger.log(`🔄 Scheduled Google Sync for agent ${agentId} (delay: ${delay}ms)`);
+    });
+  }
 
   async findAll(filter: Summary4FilterDto = {}) {
     // Sanitize and validate input parameters
@@ -168,6 +195,14 @@ export class Summary4Service {
     } catch (e) {
       this.logger.warn(`Summary5 sync failed after manualPayment update: ${e?.message || e}`);
     }
+
+    // Trigger Google Sheets sync for this agent after manual payment update
+    if (summary.agentId) {
+      const agentIdString = summary.agentId.toString();
+      this.logger.log(`🔄 Triggering Google Sync for agent ${agentIdString} after manual payment update`);
+      this.triggerGoogleSync([agentIdString]);
+    }
+
     return summary;
   }
 
@@ -269,9 +304,11 @@ export class Summary4Service {
           const agentName = (order.agentId as any)?.fullName || 'Unknown Agent';
           const productName = (order.productId as any)?.name || 'Unknown Product';
 
-          // Tính toán báo giá đã duyệt - Fix issue with populated vs non-populated fields
-          const agentIdString = ((order.agentId as any)?._id || order.agentId)?.toString();
-          const productIdString = ((order.productId as any)?._id || order.productId)?.toString();
+          // Extract proper ObjectId from populated fields
+          const agentIdObjectId = (order.agentId as any)?._id || order.agentId;
+          const productIdObjectId = (order.productId as any)?._id || order.productId;
+          const agentIdString = agentIdObjectId?.toString();
+          const productIdString = productIdObjectId?.toString();
           
           if (this.debugEnabled) this.logger.debug(`Looking for quote: agentId=${agentIdString}, productId=${productIdString}, status='Đã duyệt'`);
           
@@ -333,8 +370,8 @@ export class Summary4Service {
             trackingNumber: order.trackingNumber,
             depositAmount: order.depositAmount || 0,
             codAmount: order.codAmount || 0,
-            agentId: order.agentId,
-            productId: order.productId,
+            agentId: agentIdObjectId, // Use proper ObjectId
+            productId: productIdObjectId, // Use proper ObjectId
             approvedQuotePrice,
             mustPayToCompany,
             paidToCompany,
@@ -368,13 +405,146 @@ export class Summary4Service {
         }
       }
 
-  if (this.debugEnabled) this.logger.log(`Hoàn thành đồng bộ: ${result.updated}/${result.processed} bản ghi`);
+      if (this.debugEnabled) this.logger.log(`Hoàn thành đồng bộ: ${result.updated}/${result.processed} bản ghi`);
+      
+      // Trigger Google Sync ONLY for agents with actual updates
+      if (result.updated > 0) {
+        // Thu thập chỉ các agentIds có thay đổi thực tế
+        const updatedAgentIds = new Set<string>();
+        
+        // Logic này cần track được những record nào thực sự updated
+        // Tạm thời disable để tránh sync toàn bộ hệ thống
+        this.logger.log(`🔄 Summary4 sync completed: ${result.updated} records updated, but Google Sync is managed per-order basis`);
+        
+        // Google Sync sẽ được trigger từ individual order operations thay vì batch sync
+      }
+      
       return result;
 
     } catch (error) {
       this.logger.error('Lỗi đồng bộ dữ liệu:', error);
       result.errors.push(`Lỗi chung: ${error.message}`);
       return result;
+    }
+  }
+
+  /**
+   * Sync Summary4 cho một order cụ thể (thay vì sync toàn bộ)
+   * Detect nếu agent thay đổi và sync cả 2 agents (cũ + mới)
+   */
+  async syncSingleOrder(orderId: string): Promise<{ success: boolean; agentIds?: string[]; oldAgentId?: string; newAgentId?: string; error?: string }> {
+    try {
+      const order = await this.testOrder2Model
+        .findById(orderId)
+        .populate('agentId', 'fullName')
+        .populate('productId', 'name')
+        .exec();
+
+      if (!order) {
+        return { success: false, error: `Order ${orderId} not found` };
+      }
+
+      // Extract agent info
+      const agentName = (order.agentId as any)?.fullName || 'Unknown Agent';
+      const productName = (order.productId as any)?.name || 'Unknown Product';
+      const agentIdObjectId = (order.agentId as any)?._id || order.agentId;
+      const productIdObjectId = (order.productId as any)?._id || order.productId;
+      const agentIdString = agentIdObjectId?.toString();
+      const productIdString = productIdObjectId?.toString();
+
+      // Check if agent changed by looking at existing Summary4 record
+      const existingSummary4 = await this.summary4Model.findOne({
+        $or: [
+          { testOrder2Id: order._id },
+          { testOrder2Id: order._id.toString() as any }
+        ]
+      }).exec();
+
+      const oldAgentId = existingSummary4?.agentId?.toString();
+      const newAgentId = agentIdString;
+      const agentChanged = oldAgentId && oldAgentId !== newAgentId;
+
+      if (agentChanged) {
+        this.logger.log(`🔄 Agent changed for order ${orderId}: ${oldAgentId} → ${newAgentId}`);
+      }
+
+      // Find approved quote
+      const approvedQuote = await this.quoteModel.findOne({
+        $and: [
+          {
+            $or: [
+              { agentId: agentIdString },
+              { agentId: new Types.ObjectId(agentIdString) }
+            ]
+          },
+          {
+            $or: [
+              { productId: productIdString },
+              { productId: new Types.ObjectId(productIdString) }
+            ]
+          },
+          { status: 'Đã duyệt' }
+        ]
+      }).exec();
+
+      // Build Summary4 data
+      const setData = {
+        orderDate: order.createdAt,
+        customerName: order.customerName,
+        product: productName,
+        quantity: order.quantity,
+        agentId: agentIdObjectId,
+        agentName: agentName,
+        adGroupId: order.adGroupId,
+        productionStatus: order.productionStatus,
+        orderStatus: order.orderStatus,
+        trackingNumber: order.trackingNumber,
+        submitLink: order.submitLink,
+        depositAmount: order.depositAmount,
+        codAmount: order.codAmount,
+        approvedQuotePrice: approvedQuote?.unitPrice || 0,
+        mustPayToCompany: (approvedQuote?.unitPrice || 0) - (order.depositAmount || 0),
+        paidToCompany: 0,
+        manualPayment: 0,
+        needToPay: (approvedQuote?.unitPrice || 0) - (order.depositAmount || 0),
+        updatedAt: new Date(),
+        isActive: true
+      };
+
+      // Upsert Summary4 record
+      await this.summary4Model.updateOne(
+        {
+          $or: [
+            { testOrder2Id: order._id },
+            { testOrder2Id: order._id.toString() as any }
+          ]
+        },
+        {
+          $set: setData,
+          $setOnInsert: { testOrder2Id: order._id }
+        },
+        { upsert: true }
+      ).exec();
+
+      this.logger.log(`✅ Summary4 synced for single order ${orderId}, agent: ${agentIdString}`);
+      
+      // Return both old and new agent IDs if agent changed
+      if (agentChanged) {
+        const agentIds = [oldAgentId!, newAgentId].filter(Boolean);
+        this.logger.log(`🔄 Agent change detected, need to sync both agents: ${agentIds.join(', ')}`);
+        return { 
+          success: true, 
+          agentIds,
+          oldAgentId, 
+          newAgentId 
+        };
+      }
+      
+      return { success: true, agentIds: [agentIdString] };
+
+    } catch (error) {
+      this.logger.error(`Summary4 sync failed for order ${orderId}:`, error);
+      return { success: false, error: (error as any)?.message || 'Unknown error' };
     }
   }
 
