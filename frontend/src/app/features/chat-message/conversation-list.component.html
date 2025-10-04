@@ -146,22 +146,15 @@
           </div>
           <div class="draft-actions">
             <div class="action-row">
-              <button class="mini secondary" (click)="extractOrder()" [disabled]="orderExtractLoading()">
-                🔍 Quét lại
-              </button>
-              <button class="mini secondary" (click)="saveDraft('draft')">
-                💾 Lưu nháp
-              </button>
+              <button class="mini secondary" (click)="extractOrder()" [disabled]="orderExtractLoading() || draftSaving()">🔍 Quét lại</button>
+              <button class="mini secondary" (click)="saveDraft('draft')" [disabled]="draftSaving()">{{ draftSaving() ? 'Đang lưu...' : '💾 Lưu nháp' }}</button>
             </div>
             <div class="action-row">
-              <button class="mini primary" (click)="saveDraft('awaiting')">
-                📤 Gửi duyệt
-              </button>
-              <button class="btn primary" (click)="approve()" [disabled]="approveLoading() || !orderDraft()?._id || orderDraft()?.status==='approved'">
-                ✅ Duyệt & Tạo
-              </button>
+              <button class="mini primary" (click)="saveDraft('awaiting')" [disabled]="draftSaving()">{{ draftSaving() ? 'Đang gửi...' : '📤 Gửi duyệt' }}</button>
+              <button class="btn primary" (click)="approve()" [disabled]="approveLoading() || draftSaving() || orderDraft()?.status==='approved'">{{ approveLoading() ? 'Đang duyệt...' : '✅ Duyệt & Tạo' }}</button>
             </div>
           </div>
+          <div *ngIf="draftMsg()" class="mini-hint" style="margin-top:4px;white-space:pre-line">{{ draftMsg() }}</div>
           <div class="status-box" *ngIf="orderDraft()" [class]="'status-' + (orderDraft()?.status || 'draft')">
             <div class="status-indicator"></div>
             <span>{{ getStatusText(orderDraft()?.status || 'draft') }}</span>

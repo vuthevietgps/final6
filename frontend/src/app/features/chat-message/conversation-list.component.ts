@@ -38,6 +38,8 @@ export class ConversationListComponent implements OnInit, OnDestroy {
   orderExtractLoading = signal(false);
   orderDraft = signal<PendingOrder|undefined>(undefined);
   approveLoading = signal(false);
+  draftSaving = signal(false); // trạng thái lưu nháp
+  draftMsg = signal<string|undefined>(undefined); // thông báo cho khu vực đơn hàng
   extractSuggestions = signal<any|undefined>(undefined);
   products = signal<Product[]>([]);
   agents = signal<AgentOption[]>([]);
@@ -62,7 +64,7 @@ export class ConversationListComponent implements OnInit, OnDestroy {
     // preload limited products (could enhance with pagination later)
     this.productSvc.getAll().subscribe({ next: list => this.products.set(list.slice(0,200)), error: _=>{} });
     // load agents list for assignment
-    this.pendingSvc.listAgents().subscribe({ next: list => this.agents.set(list), error: _=>{} });
+    this.pendingSvc.listAgents().subscribe({ next: list => { console.log('[Agents] loaded', list); this.agents.set(list); }, error: err=>{ console.warn('[Agents] load failed', err); } });
   }
 
   updateFilter<K extends keyof ReturnType<typeof this.filter>>(key: K, value: any){ this.filter.update(f=> ({...f,[key]: value})); }
@@ -219,19 +221,46 @@ export class ConversationListComponent implements OnInit, OnDestroy {
   }
 
   saveDraft(status: 'draft'|'awaiting'){
-    const draft = this.orderDraft(); if(!draft) return; const body = { ...draft, status } as any;
-    if(draft._id){
-      this.pendingSvc.update(draft._id, body).subscribe(p=> this.orderDraft.set(p));
-    } else {
-      this.pendingSvc.create(body).subscribe(p=> this.orderDraft.set(p));
-    }
+    const draft = this.orderDraft(); if(!draft) return;
+    this.draftMsg.set(undefined);
+    const body = { ...draft, status } as any;
+    // Đảm bảo quantity là số
+    if(body.quantity) body.quantity = Number(body.quantity);
+    this.draftSaving.set(true);
+    const obs = draft._id ? this.pendingSvc.update(draft._id, body) : this.pendingSvc.create(body);
+    obs.subscribe({
+      next: p=>{ console.log('[PendingOrder] saved', p); this.orderDraft.set(p); this.draftSaving.set(false); this.draftMsg.set(status==='draft' ? 'Đã lưu nháp ✅' : 'Đã gửi chờ duyệt ✅'); },
+      error: e=>{ console.warn('[PendingOrder] save failed', e); this.draftSaving.set(false); this.draftMsg.set(e?.error?.message || 'Lưu thất bại'); }
+    });
   }
 
   approve(){
-    const draft = this.orderDraft(); if(!draft || !draft._id) return; this.approveLoading.set(true);
-    this.pendingSvc.approve(draft._id).subscribe({
-      next: res=>{ this.approveLoading.set(false); const cur = this.orderDraft(); this.orderDraft.set(cur? {...cur, status:'approved'}: cur); this.currentConv.update(c=> c? {...c, orderDraftStatus:'approved', orderId: res.order?._id}: c); },
-      error: _=>{ this.approveLoading.set(false); }
+    const draft = this.orderDraft();
+    if(!draft){ return; }
+    this.draftMsg.set(undefined);
+    // Nếu chưa có _id thì tự động lưu nháp trước
+    const ensureSaved = (cb: ()=>void) => {
+      if(draft && !draft._id){
+        this.saveDraft('draft');
+        // chờ 500ms cho save hoàn tất rồi thử lại approve
+        setTimeout(()=> cb(), 550);
+      } else cb();
+    };
+    // Validate trước khi approve
+    const required: (keyof PendingOrder)[] = ['productId','customerName','phone','address','adGroupId'];
+    const missing = required.filter(f=> !(draft as any)[f]);
+    if(missing.length){
+      this.draftMsg.set('Thiếu: ' + missing.join(', '));
+      return;
+    }
+    ensureSaved(()=>{
+      const current = this.orderDraft();
+      if(!current || !current._id) { this.draftMsg.set('Không thể duyệt: lưu nháp chưa hoàn tất'); return; }
+      this.approveLoading.set(true);
+      this.pendingSvc.approve(current._id).subscribe({
+        next: res=>{ this.approveLoading.set(false); const cur = this.orderDraft(); this.orderDraft.set(cur? {...cur, status:'approved'}: cur); this.currentConv.update(c=> c? {...c, orderDraftStatus:'approved', orderId: res.order?._id}: c); this.draftMsg.set('Đã duyệt & tạo đơn ✅'); },
+        error: e=>{ this.approveLoading.set(false); this.draftMsg.set(e?.error?.message||'Duyệt thất bại'); }
+      });
     });
   }
 
