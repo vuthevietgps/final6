@@ -11,6 +11,7 @@ import * as XLSX from 'xlsx';
 
 // GoogleSyncService import removed
 import { Summary4Service } from '../summary4/summary4.service';
+import { Summary4GoogleSyncService } from '../summary4/summary4-google-sync.service';
 import { Summary5Service } from '../summary5/summary5.service';
 import { Product, ProductDocument } from '../product/schemas/product.schema';
 import { TestOrder2, TestOrder2Document } from './schemas/test-order2.schema';
@@ -28,6 +29,7 @@ export class TestOrder2Service {
     @InjectModel(Product.name) private readonly productModel: Model<ProductDocument>,
     // GoogleSyncService removed
     private readonly summary4Sync: Summary4Service,
+    private readonly summary4GoogleSync: Summary4GoogleSyncService,
     private readonly summary5Service: Summary5Service,
   ) {}
 
@@ -88,9 +90,11 @@ export class TestOrder2Service {
         this.logger.error(`Summary5 sync failed after create ${orderId}:`, err.message || err);
       });
     
-    // Sync Google Ads theo agent
+    // Sync Google Sheets theo agent (after Summary4 sync)
     if (agentId && agentId !== 'undefined' && agentId !== 'null') {
-      // Google sync removed - using Summary4 sync instead
+      // Schedule Google Sync với delay 3 seconds để đảm bảo Summary4 sync hoàn thành trước
+      this.summary4GoogleSync.scheduleSyncAgent(agentId, 3000);
+      this.logger.log(`Scheduled Google Sync for agent ${agentId} after creating order ${orderId}`);
     }
   }
 
@@ -246,9 +250,11 @@ export class TestOrder2Service {
         this.logger.error(`Summary5 sync failed after update ${orderId}:`, err.message || err);
       });
     
-    // Sync Google Ads theo agent
+    // Sync Google Sheets theo agent (after Summary4 sync)
     if (agentId && agentId !== 'undefined' && agentId !== 'null') {
-      // Google sync removed - using Summary4 sync instead
+      // Schedule Google Sync với delay 3 seconds để đảm bảo Summary4 sync hoàn thành trước
+      this.summary4GoogleSync.scheduleSyncAgent(agentId, 3000);
+      this.logger.log(`Scheduled Google Sync for agent ${agentId} after updating order ${orderId}`);
     }
   }
 
@@ -388,13 +394,15 @@ export class TestOrder2Service {
         });
       });
     
-    // Sync Google Ads theo agent
+    // Sync Google Sheets theo agent (after Summary4 sync)
     if (agentId && agentId !== 'undefined' && agentId !== 'null') {
-      console.log(`[TestOrder2Service.triggerPostDeleteSyncs] Triggering Google Ads sync for agent: ${agentId} (order: ${orderId})`);
+      console.log(`[TestOrder2Service.triggerPostDeleteSyncs] Triggering Google Sheets sync for agent: ${agentId} (order: ${orderId})`);
       try {
-        // Google sync removed - using Summary4 sync instead
+        // Schedule Google Sync với delay 3 seconds để đảm bảo Summary4 sync hoàn thành trước
+        this.summary4GoogleSync.scheduleSyncAgent(agentId, 3000);
+        console.log(`[TestOrder2Service.triggerPostDeleteSyncs] Scheduled Google Sync for agent ${agentId} after deleting order ${orderId}`);
       } catch (err) {
-        console.error(`[TestOrder2Service.triggerPostDeleteSyncs] Google Ads sync scheduling failed:`, {
+        console.error(`[TestOrder2Service.triggerPostDeleteSyncs] Google Sheets sync scheduling failed:`, {
           error: err.message,
           orderId,
           agentId,
@@ -402,7 +410,7 @@ export class TestOrder2Service {
         });
       }
     } else {
-      console.warn(`[TestOrder2Service.triggerPostDeleteSyncs] Invalid agentId, skipping Google Ads sync for order: ${orderId} (agentId: ${agentId})`);
+      console.warn(`[TestOrder2Service.triggerPostDeleteSyncs] Invalid agentId, skipping Google Sheets sync for order: ${orderId} (agentId: ${agentId})`);
     }
 
     console.log(`[TestOrder2Service.triggerPostDeleteSyncs] All sync operations triggered for order: ${orderId}`);

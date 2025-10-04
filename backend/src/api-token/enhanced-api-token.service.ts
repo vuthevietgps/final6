@@ -50,7 +50,7 @@ export class EnhancedApiTokenService {
     }
 
     // Method 2: Check for backup tokens
-    const backupResult = await this.activateBackupToken(token.fanpageId);
+    const backupResult = await this.activateBackupToken(String(token.fanpageId));
     if (backupResult.success) {
       return { status: 'failover', message: 'Switched to backup token', activeToken: backupResult.token };
     }
@@ -141,7 +141,7 @@ export class EnhancedApiTokenService {
   private async notifyTokenExpiry(token: ApiTokenDocument): Promise<void> {
     try {
       // Get fanpage info
-      const fanpage = await this.fanpageModel.findById(token.fanpageId);
+      const fanpage = await this.fanpageModel.findById(String(token.fanpageId));
       
       // In a real system, you would:
       // 1. Send email notification to admins
@@ -215,7 +215,7 @@ export class EnhancedApiTokenService {
 
     // Update associated fanpage
     if (updatedToken.isPrimary) {
-      await this.fanpageModel.findByIdAndUpdate(updatedToken.fanpageId, {
+      await this.fanpageModel.findByIdAndUpdate(String(updatedToken.fanpageId), {
         accessToken: newToken
       });
     }
