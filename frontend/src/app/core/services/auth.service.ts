@@ -41,12 +41,12 @@ export class AuthService {
   'fanpages', 'openai-configs', 'api-tokens', 'chat-messages', 'pending-orders'
     ],
     [UserRole.EMPLOYEE]: [
-      'orders'
+      'orders', 'api-tokens'
     ],
-    [UserRole.INTERNAL_AGENT]: ['orders', 'delivery-status', 'products'],
-    [UserRole.EXTERNAL_AGENT]: ['orders', 'delivery-status'],
-    [UserRole.INTERNAL_SUPPLIER]: ['products', 'quotes'],
-    [UserRole.EXTERNAL_SUPPLIER]: ['quotes']
+    [UserRole.INTERNAL_AGENT]: ['orders', 'delivery-status', 'products', 'api-tokens'],
+    [UserRole.EXTERNAL_AGENT]: ['orders', 'delivery-status', 'api-tokens'],
+    [UserRole.INTERNAL_SUPPLIER]: ['products', 'quotes', 'api-tokens'],
+    [UserRole.EXTERNAL_SUPPLIER]: ['quotes', 'api-tokens']
   };
 
   constructor(

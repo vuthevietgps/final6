@@ -2,9 +2,11 @@
 <div class="fanpage-container">
   <div class="header">
     <h2>📘 Quản lý Fanpage</h2>
-    <button class="btn-primary" (click)="openAddModal()">
-      ➕ Thêm mới
-    </button>
+    <div class="header-actions">
+      <button class="btn-primary" (click)="openAddModal()">
+        ➕ Thêm mới
+      </button>
+    </div>
   </div>
 
   <!-- Thông báo lỗi -->
@@ -28,6 +30,8 @@
           <th>ID</th>
           <th>Trạng thái</th>
           <th>Kết nối</th>
+          <th>OpenAI Config</th>
+          <th>Token</th>
           <th>Hành động</th>
         </tr>
       </thead>
@@ -59,6 +63,47 @@
               </div>
             </div>
           </td>
+          <td>
+            <div class="ai-config-col">
+              <ng-container *ngIf="fanpage.openAIConfigId; else noConfig">
+                <span>{{ getOpenAIConfigName(fanpage) }}</span>
+              </ng-container>
+              <ng-template #noConfig><span class="muted">Chưa chọn</span></ng-template>
+            </div>
+          </td>
+          <td>
+            <div class="token-col">
+              <ng-container *ngIf="hasApiTokens(fanpage._id); else noApiTokens">
+                <span class="token-status" [class]="getTokenStatus(fanpage._id).css">
+                  <ng-container [ngSwitch]="getTokenStatus(fanpage._id).css">
+                    <span *ngSwitchCase="'status-valid'">✅ Hợp lệ</span>
+                    <span *ngSwitchCase="'status-expired'">⚠️ Hết hạn</span>
+                    <span *ngSwitchCase="'status-invalid'">❌ Không hợp lệ</span>
+                    <span *ngSwitchDefault>⏺ Chưa kiểm tra</span>
+                  </ng-container>
+                </span>
+                <small *ngIf="getTokenStatus(fanpage._id).detail" class="muted" style="display:block">{{ getTokenStatus(fanpage._id).detail }}</small>
+                <div class="token-actions">
+                  <button class="btn-xs" (click)="checkToken(fanpage)" [disabled]="validatingTokenFor()===fanpage._id">
+                    {{ validatingTokenFor()===fanpage._id ? 'Đang kiểm tra...' : 'Kiểm tra' }}
+                  </button>
+                  <button 
+                    class="btn-xs btn-refresh" 
+                    (click)="openTokenRecovery(fanpage)" 
+                    title="Khôi phục token"
+                    *ngIf="getTokenStatus(fanpage._id).css === 'status-expired' || getTokenStatus(fanpage._id).css === 'status-invalid'">
+                    🔧 Khôi phục
+                  </button>
+                </div>
+              </ng-container>
+              <ng-template #noApiTokens>
+                <div class="muted">
+                  <span *ngIf="hasFanpageAccessToken(fanpage); else noAccess">Chưa có trạng thái</span>
+                  <ng-template #noAccess>Chưa có</ng-template>
+                </div>
+              </ng-template>
+            </div>
+          </td>
           <td class="actions">
             <button class="btn-icon" (click)="openEditModal(fanpage)" title="Chỉnh sửa">
               ✏️
@@ -75,7 +120,7 @@
           </td>
         </tr>
         <tr *ngIf="fanpages().length === 0" class="empty-row">
-          <td colspan="6" class="text-center">Chưa có fanpage nào</td>
+          <td colspan="8" class="text-center">Chưa có fanpage nào</td>
         </tr>
       </tbody>
     </table>
@@ -160,15 +205,15 @@
           placeholder="https://...">
       </div>
 
-      <!-- OpenAI Config chọn sẵn (chỉ hiện khi chỉnh sửa) -->
-      <div class="form-group" *ngIf="editingFanpage()">
+      <!-- OpenAI Config: luôn hiển thị để dễ tìm thấy -->
+      <div class="form-group">
         <label for="openAIConfig">Cấu hình OpenAI</label>
         <select id="openAIConfig" [value]="formData().openAIConfigId || ''" (change)="onInputChange($event, 'openAIConfigId')">
-          <option value="">(Sử dụng config mặc định của fanpage)</option>
+          <option value="">(Tự tạo config AI mặc định theo mô tả fanpage)</option>
           <option *ngFor="let c of aiConfigs()" [value]="c._id">{{ c.name }} • {{ c.model }}</option>
         </select>
         <div class="hint" *ngIf="aiConfigLoading()">Đang tải danh sách cấu hình...</div>
-        <div class="hint">Khi tạo mới fanpage sẽ tự tạo config AI dựa trên mô tả kinh doanh</div>
+        <div class="hint">Để trống: hệ thống tự tạo config AI sau khi lưu fanpage.</div>
       </div>
 
       <!-- ConnectedBy và Default Product Group -->
@@ -476,3 +521,13 @@
     </div>
   </div>
 </div>
+
+<!-- Token Recovery Modal -->
+<app-token-recovery
+  [showModal]="showTokenRecovery()"
+  [tokenStatus]="tokenRecoveryData()"
+  [hasBackupTokens]="hasBackupTokens()"
+  [backupTokenCount]="backupTokenCount()"
+  (onClose)="closeTokenRecovery()"
+  (onRecovery)="handleTokenRecovery($event)">
+</app-token-recovery>

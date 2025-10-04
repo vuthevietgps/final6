@@ -20,20 +20,93 @@ interface TokenValidationResult { status: 'valid'|'invalid'|'expired'; message: 
 interface ProviderValidator { validate(rawToken: string): Promise<TokenValidationResult>; }
 
 class FacebookValidator implements ProviderValidator {
-  // TODO: Inject HttpService nếu muốn gọi Graph API; tạm mock
-  async validate(_rawToken: string): Promise<TokenValidationResult> {
-    // Giả lập: luôn valid
-    return { status: 'valid', message: 'Facebook mock ok', scopes: ['pages_read','pages_manage_metadata'] };
+  async validate(rawToken: string): Promise<TokenValidationResult> {
+    try {
+      // Validate token by calling Facebook Graph API
+      const response = await fetch(`https://graph.facebook.com/me?fields=id,name&access_token=${encodeURIComponent(rawToken)}`);
+      const data = await response.json();
+      
+      if (response.ok && data.id) {
+        // Token is valid, get permissions
+        try {
+          const permResponse = await fetch(`https://graph.facebook.com/me/permissions?access_token=${encodeURIComponent(rawToken)}`);
+          const permData = await permResponse.json();
+          const scopes = permResponse.ok && permData.data ? 
+            permData.data.filter((p: any) => p.status === 'granted').map((p: any) => p.permission) : [];
+          
+          return { 
+            status: 'valid', 
+            message: `Token hợp lệ cho ${data.name || data.id}`, 
+            scopes 
+          };
+        } catch {
+          return { 
+            status: 'valid', 
+            message: `Token hợp lệ cho ${data.name || data.id}`, 
+            scopes: [] 
+          };
+        }
+      } else if (data.error) {
+        const errorCode = data.error.code;
+        const errorMessage = data.error.message;
+        
+        if (errorCode === 190) {
+          return { status: 'expired', message: `Token hết hạn: ${errorMessage}` };
+        } else if (errorCode === 102 || errorCode === 2500) {
+          return { status: 'invalid', message: `Token không hợp lệ: ${errorMessage}` };
+        } else {
+          return { status: 'invalid', message: `Lỗi Facebook API: ${errorMessage}` };
+        }
+      } else {
+        return { status: 'invalid', message: 'Token không hợp lệ - không nhận được phản hồi từ Facebook' };
+      }
+    } catch (error) {
+      return { 
+        status: 'invalid', 
+        message: `Lỗi kết nối Facebook API: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      };
+    }
   }
 }
 class ZaloValidator implements ProviderValidator {
-  async validate(_rawToken: string): Promise<TokenValidationResult> {
-    return { status: 'valid', message: 'Zalo mock ok' };
+  async validate(rawToken: string): Promise<TokenValidationResult> {
+    try {
+      // Validate Zalo token by calling Zalo API
+      const response = await fetch(`https://openapi.zalo.me/v2.0/me?access_token=${encodeURIComponent(rawToken)}`);
+      const data = await response.json();
+      
+      if (response.ok && data.id) {
+        return { 
+          status: 'valid', 
+          message: `Zalo token hợp lệ cho ${data.name || data.id}`, 
+          scopes: [] 
+        };
+      } else if (data.error) {
+        return { status: 'invalid', message: `Zalo API error: ${data.error.message || data.error}` };
+      } else {
+        return { status: 'invalid', message: 'Zalo token không hợp lệ' };
+      }
+    } catch (error) {
+      return { 
+        status: 'invalid', 
+        message: `Lỗi kết nối Zalo API: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      };
+    }
   }
 }
 class OtherValidator implements ProviderValidator {
-  async validate(_rawToken: string): Promise<TokenValidationResult> {
-    return { status: 'valid', message: 'Other mock ok' };
+  async validate(rawToken: string): Promise<TokenValidationResult> {
+    // For 'other' provider, do basic format check only
+    if (!rawToken || rawToken.length < 10) {
+      return { status: 'invalid', message: 'Token quá ngắn hoặc không hợp lệ' };
+    }
+    
+    // Could implement specific validation logic for other providers here
+    return { 
+      status: 'valid', 
+      message: 'Token được chấp nhận (chưa xác thực với provider)', 
+      scopes: [] 
+    };
   }
 }
 
@@ -78,6 +151,11 @@ export class ApiTokenService {
   if(result.status==='valid') token.consecutiveFail = 0; else token.consecutiveFail = (token.consecutiveFail||0)+1;
     if(result.scopes) token.scopes = result.scopes;
     if(result.expireAt) token.expireAt = result.expireAt;
+  // Random 27-30 minutes for next check
+  const minMs = 27 * 60 * 1000;
+    const maxMs = 30 * 60 * 1000;
+    const delta = Math.floor(minMs + Math.random() * (maxMs - minMs));
+    token.nextCheckAt = new Date(Date.now() + delta);
     await token.save();
     await this.audit('validate', token._id, undefined, { status: token.lastCheckStatus });
     return token.toObject();
@@ -149,6 +227,8 @@ export class ApiTokenService {
         isPrimary: true
       });
       await doc.save();
+      // Validate immediately to populate status/nextCheckAt
+      try { await this.validate(doc._id.toString(), { force: true }); } catch {}
       created.push(doc.toObject());
       await this.audit('syncImport', doc._id, undefined, { fanpageId: fp._id });
     }

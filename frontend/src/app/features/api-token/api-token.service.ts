@@ -41,4 +41,12 @@ export class ApiTokenService {
   setPrimary(id: string, fanpageId: string) { return this.http.post<ApiToken>(`${this.baseUrl}/${id}/set-primary`, { fanpageId }); }
   rotate(id: string, body: RotateTokenRequest) { return this.http.post(`${this.baseUrl}/${id}/rotate`, body); }
   syncFromFanpages(){ return this.http.post<{imported:number, items:ApiToken[]}>(`${this.baseUrl}/sync/from-fanpages`, {}); }
+  
+  // Token Recovery Methods
+  refreshManually(id: string, newToken: string) { 
+    return this.http.patch<ApiToken>(`${this.baseUrl}/${id}`, { token: newToken }); 
+  }
+  activateBackup(fanpageId: string) { 
+    return this.http.post<ApiToken>(`${this.baseUrl}/activate-backup`, { fanpageId }); 
+  }
 }

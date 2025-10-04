@@ -33,7 +33,9 @@ export class ApiToken {
   @Prop({ type: Types.ObjectId, ref: 'ApiToken' }) rotatedFrom?: Types.ObjectId; // tham chiếu token cũ
   @Prop({ type: Types.ObjectId, ref: 'ApiToken' }) rotatedTo?: Types.ObjectId; // tham chiếu token mới
   @Prop([String]) scopes?: string[]; // quyền lấy được từ provider
+  @Prop() nextCheckAt?: Date; // thời điểm kế tiếp sẽ tự động kiểm tra (random 25-30 phút sau mỗi lần kiểm tra)
 }
 export const ApiTokenSchema = SchemaFactory.createForClass(ApiToken);
 ApiTokenSchema.index({ provider: 1, status: 1 });
 ApiTokenSchema.index({ fanpageId: 1, isPrimary: 1 });
+ApiTokenSchema.index({ nextCheckAt: 1 });

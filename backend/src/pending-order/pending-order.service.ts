@@ -96,7 +96,15 @@ export class PendingOrderService {
     await pending.save();
     // update conversation (best effort)
     try {
-  await this.conn.collection('conversations').updateOne({ fanpageId: pending.fanpageId, senderPsid: pending.senderPsid }, { $set: { orderId: (order as any)._id, orderDraftStatus: 'approved' } });
+      await this.conn.collection('conversations').updateOne(
+        { fanpageId: pending.fanpageId, senderPsid: pending.senderPsid },
+        { $set: { 
+          orderId: (order as any)._id, 
+          orderDraftStatus: 'approved',
+          orderCustomerName: pending.customerName,
+          orderPhone: pending.phone,
+        } }
+      );
     } catch {}
     return { order, pending };
   }

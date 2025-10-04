@@ -24,7 +24,7 @@ export class ConversationListComponent implements OnInit, OnDestroy {
   limit = signal(20);
   total = signal(0);
   items = signal<ConversationSummary[]>([]);
-  filter = signal<{fanpageId?: string; senderPsid?: string; needsHuman?: string}>({});
+  filter = signal<{fanpageId?: string; senderPsid?: string; needsHuman?: string; orderCustomerName?: string; orderPhone?: string}>({});
 
   // detail modal
   showDetail = signal(false);
@@ -43,6 +43,7 @@ export class ConversationListComponent implements OnInit, OnDestroy {
   extractSuggestions = signal<any|undefined>(undefined);
   products = signal<Product[]>([]);
   agents = signal<AgentOption[]>([]);
+  createdOrderId = signal<string|undefined>(undefined); // ID đơn test-order2 được tạo sau approve
   // auto refresh time every 30s for time-ago display
   private interval?: any;
 
@@ -76,15 +77,17 @@ export class ConversationListComponent implements OnInit, OnDestroy {
 
   // Helper methods for template
   getFanpagePageId(fanpageId: string | {pageId: string; name: string; _id: string}): string {
-    return typeof fanpageId === 'string' ? fanpageId : fanpageId.pageId;
+    if(!fanpageId) return '';
+    return typeof fanpageId === 'string' ? fanpageId : (fanpageId.pageId || fanpageId._id || '');
   }
 
   getFanpageName(fanpageId: string | {pageId: string; name: string; _id: string}): string | undefined {
-    return typeof fanpageId === 'string' ? undefined : fanpageId.name;
+    if(!fanpageId || typeof fanpageId === 'string') return undefined;
+    return (fanpageId as any).name;
   }
 
   isFanpageObject(fanpageId: string | {pageId: string; name: string; _id: string}): boolean {
-    return typeof fanpageId === 'object';
+    return !!fanpageId && typeof fanpageId === 'object';
   }
 
   load(){
@@ -95,6 +98,8 @@ export class ConversationListComponent implements OnInit, OnDestroy {
     if(f.senderPsid) q.senderPsid = f.senderPsid;
     if(f.needsHuman==='true') q.needsHuman = true;
     if(f.needsHuman==='false') q.needsHuman = false;
+  if(f.orderCustomerName) q.orderCustomerName = f.orderCustomerName;
+  if(f.orderPhone) q.orderPhone = f.orderPhone;
     this.service.listConversations(q).subscribe({
       next: resp=>{ this.items.set(resp.items); this.total.set(resp.total); this.loading.set(false); },
       error: e=>{ this.error.set(e?.error?.message||'Lỗi tải hội thoại'); this.loading.set(false); }
@@ -112,6 +117,7 @@ export class ConversationListComponent implements OnInit, OnDestroy {
     
     // Reset order panel state ngay - không cần chờ API
     this.orderDraft.set({ fanpageId: fpId, senderPsid: conv.senderPsid, quantity:1 });
+  this.createdOrderId.set(undefined);
     
     // Chỉ load messages, không block modal
     this.detailLoading.set(true);
@@ -223,7 +229,7 @@ export class ConversationListComponent implements OnInit, OnDestroy {
   saveDraft(status: 'draft'|'awaiting'){
     const draft = this.orderDraft(); if(!draft) return;
     this.draftMsg.set(undefined);
-    const body = { ...draft, status } as any;
+    const body = this.buildPendingPayload(draft, { status });
     // Đảm bảo quantity là số
     if(body.quantity) body.quantity = Number(body.quantity);
     this.draftSaving.set(true);
@@ -237,31 +243,94 @@ export class ConversationListComponent implements OnInit, OnDestroy {
   approve(){
     const draft = this.orderDraft();
     if(!draft){ return; }
+    if(this.approveLoading() || this.draftSaving()) return; // tránh double click
     this.draftMsg.set(undefined);
-    // Nếu chưa có _id thì tự động lưu nháp trước
-    const ensureSaved = (cb: ()=>void) => {
-      if(draft && !draft._id){
-        this.saveDraft('draft');
-        // chờ 500ms cho save hoàn tất rồi thử lại approve
-        setTimeout(()=> cb(), 550);
-      } else cb();
-    };
-    // Validate trước khi approve
+    // Validate required fields
     const required: (keyof PendingOrder)[] = ['productId','customerName','phone','address','adGroupId'];
-    const missing = required.filter(f=> !(draft as any)[f]);
+    const missing = required.filter(k => !(draft as any)[k]);
     if(missing.length){
       this.draftMsg.set('Thiếu: ' + missing.join(', '));
       return;
     }
-    ensureSaved(()=>{
-      const current = this.orderDraft();
-      if(!current || !current._id) { this.draftMsg.set('Không thể duyệt: lưu nháp chưa hoàn tất'); return; }
-      this.approveLoading.set(true);
-      this.pendingSvc.approve(current._id).subscribe({
-        next: res=>{ this.approveLoading.set(false); const cur = this.orderDraft(); this.orderDraft.set(cur? {...cur, status:'approved'}: cur); this.currentConv.update(c=> c? {...c, orderDraftStatus:'approved', orderId: res.order?._id}: c); this.draftMsg.set('Đã duyệt & tạo đơn ✅'); },
-        error: e=>{ this.approveLoading.set(false); this.draftMsg.set(e?.error?.message||'Duyệt thất bại'); }
-      });
+    // Chuẩn hóa quantity
+    const payload: PendingOrder = this.buildPendingPayload(draft, { quantity: Number(draft.quantity||1) });
+    this.approveLoading.set(true);
+    const persist$ = payload._id
+      ? this.pendingSvc.update(payload._id, payload)
+      : this.pendingSvc.create({ ...payload, status: 'draft' });
+    persist$.subscribe({
+      next: saved => {
+        console.log('[PendingOrder] persisted before approve', saved);
+        this.orderDraft.set(saved);
+        // Gọi approve
+        this.pendingSvc.approve(saved._id!).subscribe({
+          next: res => {
+            console.log('[PendingOrder] approved', res);
+            this.approveLoading.set(false);
+            const cur = this.orderDraft();
+            this.orderDraft.set(cur ? { ...cur, status: 'approved' } : cur);
+            // cập nhật hội thoại
+            this.currentConv.update(c => c ? { ...c, orderDraftStatus: 'approved', orderId: res.order?._id } : c);
+            this.draftMsg.set('Đã duyệt & tạo đơn ✅');
+            if(res.order?._id) this.createdOrderId.set(res.order._id);
+          },
+          error: e => {
+            console.warn('[PendingOrder] approve failed', e);
+            this.approveLoading.set(false);
+            const msg = e?.error?.message || 'Duyệt thất bại';
+            // Nếu backend báo field không hợp lệ -> gợi ý nguyên nhân
+            if(/should not exist/.test(msg)){
+              this.draftMsg.set('Duyệt thất bại: dữ liệu gửi kèm field không hợp lệ (đã lọc lại, thử lại lần nữa)');
+            } else {
+              // Nếu thiếu productId hoặc agentId hoặc validate DTO
+              if(/productId/.test(msg) && /MongoId/.test(JSON.stringify(e.error||{}))){
+                this.draftMsg.set('Sai định dạng productId (không phải ObjectId hợp lệ)');
+              } else if(/agentId/.test(msg) && /MongoId/.test(JSON.stringify(e.error||{}))){
+                this.draftMsg.set('Sai định dạng agentId');
+              } else {
+                this.draftMsg.set(msg);
+              }
+            }
+          }
+        });
+      },
+      error: e => {
+        console.warn('[PendingOrder] persist (create/update) failed before approve', e);
+        this.approveLoading.set(false);
+        this.draftMsg.set(e?.error?.message || 'Lưu trước khi duyệt thất bại');
+      }
     });
+  }
+
+  /**
+   * Chỉ chọn các field hợp lệ theo DTO để tránh ValidationPipe reject (whitelist + forbidNonWhitelisted).
+   */
+  private buildPendingPayload(src: PendingOrder, extra: Partial<PendingOrder> = {}): PendingOrder {
+    const allowed: (keyof PendingOrder)[] = [
+      'fanpageId','senderPsid','productId','agentId','adGroupId','customerName','phone','address','quantity','status','notes'
+    ];
+    const out: any = {};
+    for(const k of allowed){ if((src as any)[k] !== undefined) out[k] = (src as any)[k]; }
+    for(const [k,v] of Object.entries(extra)){ if(v !== undefined && allowed.includes(k as keyof PendingOrder)) out[k] = v; }
+    return out as PendingOrder;
+  }
+
+  copyCreatedOrderId(){
+    const id = this.createdOrderId(); if(!id) return;
+    try {
+      if(typeof navigator !== 'undefined' && (navigator as any).clipboard){
+        (navigator as any).clipboard.writeText(id);
+        this.draftMsg.set('Đã copy ID đơn hàng');
+      } else {
+        // fallback
+        const ta = document.createElement('textarea');
+        ta.value = id; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+        this.draftMsg.set('Đã copy ID đơn hàng');
+      }
+    } catch(err){
+      console.warn('Copy failed', err);
+      this.draftMsg.set('Copy ID thất bại');
+    }
   }
 
   // Field update helpers for template clarity

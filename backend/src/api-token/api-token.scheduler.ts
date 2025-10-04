@@ -19,11 +19,28 @@ export class ApiTokenScheduler {
     private tokenService: ApiTokenService
   ){}
 
-  // Mỗi 5 phút kiểm tra cần revalidate
+  // Mỗi 5 phút: pick tokens đến hạn nextCheckAt, fallback cho token chưa có lịch dùng cutoff 30'
   @Cron(CronExpression.EVERY_5_MINUTES)
   async periodicValidate(){
-    const cutoff = new Date(Date.now() - 30*60*1000); // 30 phút
-    const candidates = await this.model.find({ status: 'active', $or: [ { lastCheckedAt: { $exists: false } }, { lastCheckedAt: { $lt: cutoff } } ] }).limit(50);
+    // Ensure ApiTokens are created from Fanpage accessToken (idempotent)
+    try { await this.tokenService.syncFromFanpages(); } catch {}
+    const now = new Date();
+    const cutoff = new Date(Date.now() - 30*60*1000); // 30'
+    const candidates = await this.model.find({
+      status: 'active',
+      $and: [
+        { $or: [
+          { nextCheckAt: { $exists: true, $ne: null, $lte: now } },
+          { nextCheckAt: { $exists: false } },
+          { nextCheckAt: null }
+        ]},
+        { $or: [
+          { lastCheckedAt: { $exists: false } },
+          { lastCheckedAt: { $lt: cutoff } },
+          { nextCheckAt: { $exists: true, $ne: null, $lte: now } }
+        ]}
+      ]
+    }).limit(50);
     for(const c of candidates){
       try { await this.tokenService.validate(c._id.toString(), { force: true }); } catch(e){ this.logger.warn(`Validate fail ${c._id}: ${(e as any).message}`); }
     }

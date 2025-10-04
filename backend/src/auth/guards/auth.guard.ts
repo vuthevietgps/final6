@@ -44,22 +44,22 @@ export class RolesGuard implements CanActivate {
       'director': [
         'users','orders','pending-orders','products','product-categories',
         'delivery-status','production-status','order-status',
-        'ad-accounts','ad-groups','advertising-costs',
+        'ad-accounts','ad-groups','advertising-costs','api-tokens',
         'labor-costs','other-costs','salary-config',
         'customers','purchase-costs','fanpages','openai-configs',
         'quotes','reports','export','import','settings','admin'
       ],
       'manager': [
         'orders','pending-orders',
-        'ad-accounts','ad-groups','advertising-costs','fanpages','openai-configs'
+        'ad-accounts','ad-groups','advertising-costs','fanpages','openai-configs','api-tokens'
       ],
       'employee': [
-        'orders','pending-orders'
+        'orders','pending-orders','api-tokens'
       ],
-      'internal_agent': ['orders','pending-orders','delivery-status','products'],
-      'external_agent': ['orders','pending-orders','delivery-status'],
-      'internal_supplier': ['products','quotes'],
-      'external_supplier': ['quotes']
+      'internal_agent': ['orders','pending-orders','delivery-status','products','api-tokens'],
+      'external_agent': ['orders','pending-orders','delivery-status','api-tokens'],
+      'internal_supplier': ['products','quotes','api-tokens'],
+      'external_supplier': ['quotes','api-tokens']
     };
 
   // Bổ sung mặc định quyền chat-messages cho director & manager để xem hội thoại

@@ -4,6 +4,8 @@
     <div class="filters">
       <input placeholder="Fanpage ID" [ngModel]="filter().fanpageId" (ngModelChange)="updateFilter('fanpageId',$event)"/>
       <input placeholder="Sender PSID" [ngModel]="filter().senderPsid" (ngModelChange)="updateFilter('senderPsid',$event)"/>
+      <input placeholder="Khách hàng" [ngModel]="filter().orderCustomerName" (ngModelChange)="updateFilter('orderCustomerName',$event)"/>
+      <input placeholder="Số điện thoại" [ngModel]="filter().orderPhone" (ngModelChange)="updateFilter('orderPhone',$event)"/>
       <select [ngModel]="filter().needsHuman" (ngModelChange)="updateFilter('needsHuman',$event)">
         <option value="">--Needs Human?--</option>
         <option value="true">Cần xử lý</option>
@@ -18,7 +20,9 @@
     <thead>
       <tr>
         <th>Fanpage</th>
-        <th>Sender</th>
+  <th>Sender</th>
+  <th>Khách hàng</th>
+  <th>Điện thoại</th>
         <th>Ad Group</th>
         <th>Tổng</th>
         <th>Inbound/Out</th>
@@ -39,7 +43,9 @@
             <a *ngIf="isFanpageObject(c.fanpageId)" [href]="'https://facebook.com/' + getFanpagePageId(c.fanpageId)" target="_blank" class="fb-link" title="Xem fanpage trên Facebook">🔗</a>
           </div>
         </td>
-        <td>{{ c.senderPsid }}</td>
+  <td>{{ c.senderPsid }}</td>
+  <td>{{ c.orderCustomerName || '-' }}</td>
+  <td>{{ c.orderPhone || '-' }}</td>
         <td>
           <span *ngIf="c.lastAdGroupId" class="ad-group-badge">{{ c.lastAdGroupId }}</span>
           <span *ngIf="!c.lastAdGroupId" class="no-ad-group">-</span>
@@ -151,13 +157,18 @@
             </div>
             <div class="action-row">
               <button class="mini primary" (click)="saveDraft('awaiting')" [disabled]="draftSaving()">{{ draftSaving() ? 'Đang gửi...' : '📤 Gửi duyệt' }}</button>
-              <button class="btn primary" (click)="approve()" [disabled]="approveLoading() || draftSaving() || orderDraft()?.status==='approved'">{{ approveLoading() ? 'Đang duyệt...' : '✅ Duyệt & Tạo' }}</button>
+              <button class="btn primary" (click)="approve()" [disabled]="approveLoading() || draftSaving() || (orderDraft()?.status==='approved') || !orderDraft()?.productId || !orderDraft()?.customerName || !orderDraft()?.phone || !orderDraft()?.address || !orderDraft()?.adGroupId">{{ approveLoading() ? 'Đang duyệt...' : '✅ Duyệt & Tạo' }}</button>
             </div>
           </div>
           <div *ngIf="draftMsg()" class="mini-hint" style="margin-top:4px;white-space:pre-line">{{ draftMsg() }}</div>
           <div class="status-box" *ngIf="orderDraft()" [class]="'status-' + (orderDraft()?.status || 'draft')">
             <div class="status-indicator"></div>
             <span>{{ getStatusText(orderDraft()?.status || 'draft') }}</span>
+          </div>
+          <div *ngIf="createdOrderId()" class="mini-hint" style="margin-top:6px;">
+            Đơn đã tạo: <strong>#{{ createdOrderId() }}</strong>
+            <button class="mini" (click)="copyCreatedOrderId()">Copy ID</button>
+            <!-- Có thể thêm link điều hướng nếu có route quản lý đơn -->
           </div>
         </div>
       </div>

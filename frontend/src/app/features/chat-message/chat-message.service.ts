@@ -38,6 +38,8 @@ export interface ConversationSummary {
   firstAwaitingAt?: string;
   lastResolvedAt?: string;
   autoAiEnabled?: boolean;
+  orderCustomerName?: string;
+  orderPhone?: string;
 }
 
 export interface ConversationListResponse { items: ConversationSummary[]; total: number; page: number; limit: number; totalPages: number; }

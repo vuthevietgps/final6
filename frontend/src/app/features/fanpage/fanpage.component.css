@@ -415,6 +415,35 @@
   text-align: right;
 }
 
+/* Token/OpenAI columns */
+.ai-config-col { font-size: 13px; color: #374151; }
+.token-col { display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+.token-status { padding: 2px 8px; border-radius: 999px; display: inline-block; }
+.status-valid { background: #d1fae5; color: #065f46; }
+.status-expired { background: #fee2e2; color: #991b1b; }
+.status-invalid { background: #fee2e2; color: #b91c1c; }
+.status-unknown { background: #f3f4f6; color: #6b7280; }
+.muted { color: #6b7280; }
+
+/* Token Actions */
+.token-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.btn-refresh {
+  background: #f59e0b !important;
+  color: white !important;
+  font-size: 10px !important;
+  padding: 2px 6px !important;
+}
+
+.btn-refresh:hover {
+  background: #d97706 !important;
+}
+
 /* Modal */
 .modal-overlay {
   position: fixed;

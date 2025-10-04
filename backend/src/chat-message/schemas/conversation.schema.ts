@@ -35,8 +35,14 @@ export class Conversation {
   @Prop({ type: Types.ObjectId, ref: 'PendingOrder' }) pendingOrderId?: Types.ObjectId;
   @Prop({ type: Types.ObjectId, ref: 'TestOrder2' }) orderId?: Types.ObjectId;
   @Prop({ default: 'none', enum: ['none','draft','awaiting','approved'] }) orderDraftStatus?: 'none'|'draft'|'awaiting'|'approved';
+  // Denormalized customer fields for search after approve
+  @Prop({ trim: true }) orderCustomerName?: string;
+  @Prop({ trim: true }) orderPhone?: string;
 }
 
 export const ConversationSchema = SchemaFactory.createForClass(Conversation);
 ConversationSchema.index({ fanpageId: 1, senderPsid: 1 }, { unique: true });
 ConversationSchema.index({ needsHuman: 1, lastMessageAt: -1 });
+// Search indexes for customer lookup
+ConversationSchema.index({ orderPhone: 1 });
+ConversationSchema.index({ orderCustomerName: 'text' });

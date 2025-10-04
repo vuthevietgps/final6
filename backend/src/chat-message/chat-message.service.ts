@@ -76,6 +76,11 @@ export class ChatMessageService {
     const filter: any = {};
     if (query.fanpageId) filter.fanpageId = query.fanpageId;
     if (query.senderPsid) filter.senderPsid = query.senderPsid;
+    if (query.orderPhone) filter.orderPhone = query.orderPhone;
+    if (query.orderCustomerName) {
+      // Use MongoDB text search on orderCustomerName (requires text index)
+      filter.$text = { $search: query.orderCustomerName };
+    }
     if (query.needsHuman === 'true') filter.needsHuman = true;
     if (query.needsHuman === 'false') filter.needsHuman = false;
     if (query.archived === 'true') filter.archived = true;
