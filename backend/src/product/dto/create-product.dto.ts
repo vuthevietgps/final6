@@ -51,6 +51,11 @@ export class CreateProductDto {
   estimatedDeliveryDays?: number;
 
   @IsOptional()
+  @IsNumber()
+  @Min(1)
+  usageDurationMonths?: number;
+
+  @IsOptional()
   @IsEnum(['Hoạt động', 'Tạm dừng'])
   status?: string;
 

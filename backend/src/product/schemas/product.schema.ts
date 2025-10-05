@@ -33,6 +33,9 @@ export class Product {
   @Prop({ required: true, min: 0, default: 0 })
   estimatedDeliveryDays: number; // Dự kiến thời gian chờ nhập (ngày)
 
+  @Prop({ min: 1, default: 12 })
+  usageDurationMonths: number; // Thời gian sử dụng của sản phẩm (tháng)
+
   @Prop({ 
     required: true, 
     enum: ['Hoạt động', 'Tạm dừng'], 

@@ -114,6 +114,7 @@
           <th>Danh Mục</th>
           <th>Màu Sắc</th>
           <th>Giá Nhập</th>
+          <th>T.Gian Sử Dụng</th>
           <th>Link Tài Nguyên</th>
           <th>Trạng Thái</th>
           <th>Thao Tác</th>
@@ -139,6 +140,12 @@
             </div>
           </td>
           <td class="price-cell">{{ formatCurrency(product.importPrice) }}</td>
+          <td class="usage-duration-cell">
+            <div class="usage-duration">
+              <span class="duration-value">{{ product.usageDurationMonths || 12 }}</span>
+              <span class="duration-unit">tháng</span>
+            </div>
+          </td>
           <td class="resource-link-cell">
             <div *ngIf="product.resourceLink" class="resource-link">
               <a [href]="product.resourceLink" target="_blank" rel="noopener noreferrer" title="Mở link tài nguyên">
@@ -286,6 +293,18 @@
             [value]="formData().estimatedDeliveryDays"
             (input)="onInputChange('estimatedDeliveryDays', $event)"
             placeholder="1"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="usageDurationMonths">Thời Gian Sử Dụng (tháng)</label>
+          <input
+            type="number"
+            id="usageDurationMonths"
+            min="1"
+            [value]="formData().usageDurationMonths"
+            (input)="onInputChange('usageDurationMonths', $event)"
+            placeholder="12"
           />
         </div>
 
@@ -468,6 +487,18 @@
             [value]="formData().estimatedDeliveryDays"
             (input)="onInputChange('estimatedDeliveryDays', $event)"
             placeholder="1"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="edit-usageDurationMonths">Thời Gian Sử Dụng (tháng)</label>
+          <input
+            type="number"
+            id="edit-usageDurationMonths"
+            min="1"
+            [value]="formData().usageDurationMonths"
+            (input)="onInputChange('usageDurationMonths', $event)"
+            placeholder="12"
           />
         </div>
 

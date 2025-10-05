@@ -99,6 +99,12 @@ export const routes: Routes = [
     data: { permissions: ['products'] }
   },
   {
+    path: 'customer',
+    loadComponent: () => import('./features/customer/customer.component').then(m => m.CustomerComponent),
+    canActivate: [AuthGuard],
+    data: { permissions: ['customers'] }
+  },
+  {
     path: 'quotes',
     loadComponent: () => import('./features/quote/quote.component').then(m => m.QuoteComponent),
     canActivate: [AuthGuard],
@@ -106,7 +112,7 @@ export const routes: Routes = [
   },
   {
     path: 'customers',
-    loadComponent: () => import('./core/components/coming-soon.component').then(m => m.ComingSoonComponent),
+    loadComponent: () => import('./features/customer/customer.component').then(m => m.CustomerComponent),
     canActivate: [AuthGuard],
     data: { permissions: ['customers'] }
   },

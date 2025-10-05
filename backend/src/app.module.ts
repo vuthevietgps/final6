@@ -26,6 +26,7 @@ import { AdvertisingCostModule } from './advertising-cost/advertising-cost.modul
 import { AdvertisingCostPublicModule } from './advertising-cost-public/advertising-cost-public.module';
 import { AdvertisingCostSuggestionModule } from './advertising-cost-suggestion/advertising-cost-suggestion.module';
 import { AuthModule } from './auth/auth.module';
+import { CustomerModule } from './customer/customer.module';
 import { DeliveryStatusModule } from './delivery-status/delivery-status.module';
 import { ExportUserModule } from './export-user/export-user.module';
 import { GoogleSyncModule } from './google-sync/google-sync.module';
@@ -117,6 +118,9 @@ import { FacebookTokenModule } from './facebook-token/facebook-token.module';
 
     // Import ProductModule để quản lý sản phẩm
     ProductModule,
+
+    // Import CustomerModule để quản lý khách hàng
+    CustomerModule,
 
     // Import QuoteModule để quản lý báo giá đại lý
     QuoteModule,

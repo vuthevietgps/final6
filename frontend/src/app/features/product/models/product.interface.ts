@@ -12,6 +12,7 @@ export interface Product {
   minStock: number;
   maxStock: number;
   estimatedDeliveryDays: number;
+  usageDurationMonths: number;
   status: 'Hoạt động' | 'Tạm dừng';
   color: string;
   notes?: string;
@@ -39,6 +40,7 @@ export interface CreateProductDto {
   minStock: number;
   maxStock: number;
   estimatedDeliveryDays?: number;
+  usageDurationMonths?: number;
   status?: 'Hoạt động' | 'Tạm dừng';
   color?: string;
   notes?: string;
